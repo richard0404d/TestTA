@@ -150,9 +150,11 @@ export default function Navbar() {
             })}
 
             {/* LOGOUT */}
+            <Link href="/admin/dashboardAdmin">
             <Button className="mt-2">
               Logout
             </Button>
+            </Link>
 
           </div>
 
