@@ -1,7 +1,11 @@
 "use client";
 
+import { LogoutButton } from "@/components/logout-button";
+
 import Link from "next/link";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
+
 import { usePathname } from "next/navigation";
 
 import {
@@ -14,148 +18,253 @@ import {
   Wrench,
   BarChart3,
   Users,
-  LogOut,
   Menu,
   X,
 } from "lucide-react";
 
 export default function AdminSidebar() {
-  const [open, setOpen] = useState(false);
 
-  // ✅ DETEKSI HALAMAN AKTIF
-  const pathname = usePathname();
+  const [open, setOpen] =
+    useState(false);
+
+  const [role, setRole] =
+    useState<number | null>(null);
+
+  const pathname =
+    usePathname();
+
+  // ============================================
+  // GET ROLE
+  // ============================================
+
+  useEffect(() => {
+
+    const savedRole =
+      localStorage.getItem(
+        "role"
+      );
+
+    if (savedRole) {
+
+      setRole(
+        Number(savedRole)
+      );
+    }
+
+  }, []);
+
+  // ============================================
+  // MENUS
+  // ============================================
 
   const menus = [
+
     {
       name: "Beranda",
-      icon: <LayoutDashboard size={20} />,
-      href: "/admin/dashboardAdmin",
+      icon: (
+        <LayoutDashboard size={20} />
+      ),
+      href:
+        "/admin/dashboardAdmin",
     },
+
     {
       name: "Kamar",
-      icon: <BedDouble size={20} />,
-      href: "/admin/manajemenKamar",
+      icon: (
+        <BedDouble size={20} />
+      ),
+      href:
+        "/admin/manajemenKamar",
     },
+
     {
       name: "Fasilitas",
-      icon: <Building2 size={20} />,
-      href: "/admin/manajemenFasilitas",
+      icon: (
+        <Building2 size={20} />
+      ),
+      href:
+        "/admin/manajemenFasilitas",
     },
+
     {
       name: "Reservasi",
-      icon: <CalendarCheck size={20} />,
-      href: "/admin/manajemenReservasi",
+      icon: (
+        <CalendarCheck size={20} />
+      ),
+      href:
+        "/admin/manajemenReservasi",
     },
+
     {
       name: "Sewa",
-      icon: <Wallet size={20} />,
-      href: "/admin/manajemenSewa",
+      icon: (
+        <Wallet size={20} />
+      ),
+      href:
+        "/admin/manajemenSewa",
     },
+
     {
       name: "Pembayaran",
-      icon: <Receipt size={20} />,
-      href: "/admin/manajemenPembayaran",
+      icon: (
+        <Receipt size={20} />
+      ),
+      href:
+        "/admin/manajemenPembayaran",
     },
-    {
-      name: "Pengeluaran",
-      icon: <Wallet size={20} />,
-      href: "/admin/manajemenPengeluaran",
-    },
+
     {
       name: "Laporan Kerusakan",
-      icon: <Wrench size={20} />,
-      href: "/admin/manajemenLaporanKerusakan",
+      icon: (
+        <Wrench size={20} />
+      ),
+      href:
+        "/admin/manajemenLaporanKerusakan",
     },
-    {
-      name: "Laporan Keuangan",
-      icon: <BarChart3 size={20} />,
-      href: "/admin/manajemenLaporanKeuangan",
-    },
-    {
-      name: "Pengguna",
-      icon: <Users size={20} />,
-      href: "/admin/manajemenPengguna",
-    },
+
+    // ============================================
+    // KHUSUS PEMILIK
+    // ============================================
+
+    ...(role === 1
+      ? [
+
+          {
+            name: "Pengeluaran",
+            icon: (
+              <Wallet size={20} />
+            ),
+            href:
+              "/admin/manajemenPengeluaran",
+          },
+
+          {
+            name: "Laporan Keuangan",
+            icon: (
+              <BarChart3 size={20} />
+            ),
+            href:
+              "/admin/manajemenLaporanKeuangan",
+          },
+
+          {
+            name: "Pengguna",
+            icon: (
+              <Users size={20} />
+            ),
+            href:
+              "/admin/manajemenPengguna",
+          },
+
+        ]
+      : []),
   ];
 
   return (
     <>
-      {/* ================= TOPBAR ================= */}
+
+      {/* TOPBAR */}
+
       <div className="fixed top-0 left-0 w-full h-16 bg-[#1c3163] text-white flex items-center justify-between px-5 z-50 shadow-sm">
 
         <h1 className="text-2xl font-bold">
           Kos 75
         </h1>
 
-        {/* MOBILE BUTTON */}
         <button
           className="md:hidden"
-          onClick={() => setOpen(!open)}
+          onClick={() =>
+            setOpen(!open)
+          }
         >
-          {open ? <X size={28} /> : <Menu size={28} />}
+
+          {open ? (
+            <X size={28} />
+          ) : (
+            <Menu size={28} />
+          )}
+
         </button>
 
       </div>
 
-      {/* ================= MOBILE MENU ================= */}
+      {/* MOBILE */}
+
       <div
         className={`md:hidden fixed top-16 left-0 w-full bg-white z-40 border-b overflow-hidden transition-all duration-300 ${
-          open ? "max-h-[700px]" : "max-h-0"
+          open
+            ? "max-h-[700px]"
+            : "max-h-0"
         }`}
       >
 
         <div className="px-4 py-4 flex flex-col gap-3">
 
-          {menus.map((menu, index) => {
+          {menus.map((menu) => {
 
-            // ✅ ACTIVE MENU
-            const isActive = pathname === menu.href;
+            const isActive =
+              pathname ===
+              menu.href;
 
             return (
+
               <Link
-                key={index}
+                key={menu.href}
                 href={menu.href}
-                onClick={() => setOpen(false)}
+                onClick={() =>
+                  setOpen(false)
+                }
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium
-                  
-                  ${
-                    isActive
-                      ? "bg-[#1c3163] text-white shadow-md"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }
-                `}
+
+                ${
+                  isActive
+                    ? "bg-[#1c3163] text-white"
+                    : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                }
+              `}
               >
+
                 {menu.icon}
+
                 {menu.name}
+
               </Link>
             );
           })}
 
         </div>
+
       </div>
 
-      {/* ================= DESKTOP SIDEBAR ================= */}
+      {/* DESKTOP */}
+
       <aside className="hidden md:flex fixed top-16 left-0 w-[260px] h-[calc(100vh-64px)] bg-white border-r flex-col p-5 overflow-y-auto">
 
         {/* LOGO */}
+
         <div className="w-full h-28 border-2 border-dashed rounded-2xl flex items-center justify-center text-gray-400 mb-8">
+
           Logo
+
         </div>
 
         {/* MENU */}
+
         <div className="flex flex-col gap-2">
 
-          {menus.map((menu, index) => {
+          {menus.map((menu) => {
 
-            // ✅ ACTIVE MENU
-            const isActive = pathname === menu.href;
+            const isActive =
+              pathname ===
+              menu.href;
 
             return (
+
               <Link
-                key={index}
+                key={menu.href}
                 href={menu.href}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium
-                
+
                 ${
                   isActive
                     ? "bg-[#1c3163] text-white shadow-md"
@@ -163,8 +272,11 @@ export default function AdminSidebar() {
                 }
               `}
               >
+
                 {menu.icon}
+
                 {menu.name}
+
               </Link>
             );
           })}
@@ -172,22 +284,15 @@ export default function AdminSidebar() {
         </div>
 
         {/* LOGOUT */}
+
         <div className="mt-auto pt-6">
-          <Link
-            href="/"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 hover:text-red-600 transition font-medium text-gray-700"
-          >
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 hover:text-red-600 transition font-medium text-gray-700 w-full">
 
-            <LogOut size={20} />
+          <LogoutButton />
 
-            Keluar
-
-          </button>
-          </Link>
         </div>
 
       </aside>
+
     </>
   );
 }

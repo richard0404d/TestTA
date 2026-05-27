@@ -14,7 +14,7 @@ export default function MenuCepatPenyewa() {
       desc: "Lihat riwayat transaksi pembayaran",
       icon: "💰",
       color: "bg-green-500",
-      href: "/user/riwayat-pembayaran",
+      href: "/user/pembayaran",
     },
     {
       title: "Reservasi Kamar",
@@ -28,7 +28,7 @@ export default function MenuCepatPenyewa() {
       desc: "Laporkan kerusakan fasilitas kos",
       icon: "🛠️",
       color: "bg-orange-500",
-      href: "/user/laporan-kerusakan",
+      href: "/user/laporanKerusakan",
     },
     {
       title: "Profil Saya",

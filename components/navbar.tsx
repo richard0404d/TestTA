@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { LogoutButton } from '@/components/logout-button'
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -93,16 +94,7 @@ export default function Navbar() {
         {/* ================= DESKTOP BUTTON ================= */}
         <div className="hidden md:block">
 
-          <Link href="/admin/dashboardAdmin">
-
-            <Button
-              variant="outline"
-              className="hover:bg-red-50 hover:text-red-600 transition"
-            >
-              Logout
-            </Button>
-
-          </Link>
+            <LogoutButton />
 
         </div>
 
@@ -150,11 +142,9 @@ export default function Navbar() {
             })}
 
             {/* LOGOUT */}
-            <Link href="/admin/dashboardAdmin">
             <Button className="mt-2">
               Logout
             </Button>
-            </Link>
 
           </div>
 
