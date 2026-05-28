@@ -141,10 +141,9 @@ export default function Reservasi() {
           data.nomor_telepon_penyewa || "",
 
         gender:
-          data.jenis_kelamin ===
-          true
-            ? "Pria"
-            : "Wanita",
+        data.jenis_kelamin
+          ? "Wanita"
+          : "Pria",
       }));
     };
 
@@ -587,6 +586,100 @@ const {
           return;
         }
 
+
+        // ============================================
+// INSERT SEWA
+// ============================================
+
+const {
+  data: sewaData,
+  error: sewaError,
+} = await supabase
+  .from("sewa")
+  .insert([
+    {
+      id_reservasi:
+        reservasiData
+          .id_reservasi,
+
+      id_penyewa:
+        user.id,
+
+      id_kamar:
+        Number(
+          form.kamar
+        ),
+
+      tanggal_sewa:
+        form.tanggal,
+
+      status_sewa:
+        "Menunggu Pembayaran",
+    },
+  ])
+  .select()
+  .single();
+
+if (sewaError) {
+
+  console.log(
+    sewaError
+  );
+
+  alert(
+    sewaError.message
+  );
+
+  return;
+}
+
+
+        // ============================================
+// INSERT TAGIHAN
+// ============================================
+
+const batasPembayaran =
+  new Date(
+    Date.now() +
+      24 *
+        60 *
+        60 *
+        1000
+  );
+
+const {
+  error: tagihanError,
+} = await supabase
+  .from("tagihan")
+  .insert([
+    {
+      id_sewa:
+        sewaData.id_sewa,
+
+      batas_pembayaran:
+        batasPembayaran,
+
+      total_tagihan:
+        hargaTotal,
+
+      status_tagihan:
+        "Belum Dibayar",
+    },
+  ]);
+
+if (tagihanError) {
+
+  console.log(
+    tagihanError
+  );
+
+  alert(
+    tagihanError.message
+  );
+
+  return;
+}
+
         // ============================================
         // UPDATE STATUS KAMAR
         // ============================================
@@ -677,6 +770,36 @@ await fetch(
         setLoading(false);
       }
     };
+
+    // ============================================
+// FORMAT LOCAL DATE
+// ============================================
+
+const today =
+  new Date();
+
+const localToday =
+  new Date(
+    today.getTime() -
+    today.getTimezoneOffset() *
+      60000
+  )
+    .toISOString()
+    .split("T")[0];
+
+const maxDate =
+  new Date(
+    today.getTime() +
+      5 *
+      24 *
+      60 *
+      60 *
+      1000 -
+    today.getTimezoneOffset() *
+      60000
+  )
+    .toISOString()
+    .split("T")[0];
 
   return (
 
@@ -896,6 +1019,11 @@ await fetch(
             onChange={
               handleChange
             }
+
+            min={localToday}
+
+            max={maxDate}
+
             className="w-full border rounded-lg p-3 mt-2"
           />
 

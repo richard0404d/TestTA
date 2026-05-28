@@ -8,6 +8,16 @@ export async function updateSession(
   request: NextRequest
 ) {
 
+  // IZINKAN API MIDTRANS
+  if (
+    request.nextUrl.pathname.startsWith(
+      "/api/midtrans"
+    )
+  ) {
+
+    return NextResponse.next();
+  }
+
   let supabaseResponse =
     NextResponse.next({
       request,

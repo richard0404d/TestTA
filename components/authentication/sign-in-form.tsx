@@ -109,6 +109,48 @@ export function LoginForm({
       }
 
       // ============================================
+      // CEK TABEL PENYEWA
+      // ============================================
+
+      const {
+        data: penyewa,
+        error: penyewaError,
+      } = await supabase
+        .from("penyewa")
+        .select("*")
+        .eq(
+          "id_penyewa",
+          user.id
+        )
+        .maybeSingle();
+
+      // DEBUG
+      console.log(
+        "Penyewa:",
+        penyewa
+      );
+
+      // ============================================
+      // JIKA PENYEWA
+      // ============================================
+
+      if (
+        penyewa &&
+        !penyewaError
+      ) {
+
+        // ROLE PENYEWA
+        localStorage.setItem(
+          "role",
+          "3"
+        );
+
+        router.push("/");
+
+        return;
+      }
+
+      // ============================================
       // CEK TABEL PEGAWAI
       // ============================================
 
@@ -167,51 +209,6 @@ export function LoginForm({
         }
       }
       
-
-      // ============================================
-      // CEK TABEL PENYEWA
-      // ============================================
-
-      const {
-        data: penyewa,
-        error: penyewaError,
-      } = await supabase
-        .from("penyewa")
-        .select("*")
-        .eq("id_penyewa", user.id)
-        .maybeSingle();
-
-      // DEBUG ERROR
-      console.log(
-        "Penyewa Error:",
-        penyewaError
-      );
-
-      console.log(
-        "Penyewa:",
-        penyewa
-      );
-
-      // ============================================
-      // JIKA PENYEWA
-      // ============================================
-
-      if (
-        penyewa &&
-        !penyewaError
-      ) {
-
-        // ROLE PENYEWA
-        localStorage.setItem(
-          "role",
-          "3"
-        );
-
-        router.push("/");
-
-        return;
-      }
-
       // ============================================
       // ROLE TIDAK DITEMUKAN
       // ============================================
