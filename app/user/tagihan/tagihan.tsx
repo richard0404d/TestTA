@@ -119,6 +119,7 @@ console.log(
     *,
     sewa!inner (
       *,
+      tanggal_berakhir_sewa,
       kamar (
         id_kamar
       )
@@ -237,7 +238,7 @@ console.log(
                 ) => (
 
                   <div
-                    key={index}
+                    key={item.id_tagihan}
                     className="
                       border rounded-2xl p-5 bg-gray-50
                       flex flex-col gap-5
@@ -256,8 +257,24 @@ console.log(
 
                       <p className="font-medium text-base md:text-lg">
 
-                        Pembayaran Kos Kamar {
+                        Tagihan {
+
+                          new Date(
+                            item.created_at
+                          ).toLocaleDateString(
+                            "id-ID",
+                            {
+                              month: "long",
+                              year: "numeric",
+                            }
+                          )
+
+                        }
+
+                        {" - "}Kamar {
+
                           item.sewa?.kamar?.id_kamar
+
                         }
 
                       </p>
@@ -283,24 +300,30 @@ console.log(
 
                     </div>
 
-                    {/* BATAS */}
+                    {/* INFORMASI */}
+
                     <div>
 
                       <p className="text-sm text-gray-500 mb-1 md:hidden">
-
-                        Batas Pembayaran
-
+                        Informasi Tagihan
                       </p>
 
-                      <p className="text-base md:text-lg">
+                      <div className="space-y-1 text-sm">
 
-                        {new Date(
-                          item.batas_pembayaran
-                        ).toLocaleDateString(
-                          "id-ID"
-                        )}
+                        <p>
 
-                      </p>
+                          {" "}
+
+                          {new Date(
+                            item.batas_pembayaran
+                          ).toLocaleDateString(
+                            "id-ID"
+                          )}
+
+                        </p>
+
+
+                      </div>
 
                     </div>
 

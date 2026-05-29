@@ -14,5 +14,5 @@ export function LogoutButton() {
     router.push('/authentication/sign-in')
   }
 
-  return <Button onClick={logout}>Logout</Button>
+  return <button onClick={logout} className="flex items-center gap-3 w-full block text-left text-sm font-medium text-red-600 hover:text-red-700 transition-all duration-200">Keluar</button>
 }

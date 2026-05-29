@@ -132,10 +132,18 @@ export default function PembayaranPage() {
           data: sewaUser
         } = await supabase
           .from("sewa")
-          .select("id_sewa")
+          .select(`
+            id_sewa,
+            tanggal_berakhir_sewa,
+            status_sewa
+          `)
           .eq(
             "id_penyewa",
             user.id
+          )
+          .neq(
+            "status_sewa",
+            "Berakhir"
           );
 
         // ============================================
@@ -213,13 +221,6 @@ export default function PembayaranPage() {
               sewa (*)
             )
           `)
-          .in(
-            "tagihan.id_sewa",
-            sewaUser?.map(
-              (item) =>
-                item.id_sewa
-            ) || []
-          )
           .order(
             "tanggal_pembayaran",
             {
@@ -227,13 +228,20 @@ export default function PembayaranPage() {
             }
           );
 
-        setHistories(
+        const filteredHistory =
           (pembayaranData || [])
           .filter(
             (item) =>
-              item.tagihan &&
-              item.tagihan.sewa
-          )
+              sewaUser?.some(
+                (s) =>
+                  s.id_sewa ===
+                  item.tagihan
+                    ?.id_sewa
+              )
+          );
+
+        setHistories(
+          filteredHistory
         );
 
       } catch (error) {
@@ -254,6 +262,9 @@ export default function PembayaranPage() {
 
   const handleBayar =
     async () => {
+
+      if (processing)
+        return;
 
       try {
 
@@ -348,15 +359,21 @@ window.snap.pay(
       },
 
     onPending:
-      function (
-        result: any
-      ) {
+    function (
+      result: any
+    ) {
 
-        console.log(
-          "PENDING",
-          result
-        );
-      },
+      console.log(
+        "PENDING",
+        result
+      );
+
+      alert(
+        "Menunggu pembayaran"
+      );
+
+      window.location.reload();
+    },
 
     onError:
       function (
@@ -516,17 +533,16 @@ window.snap.pay(
 
                   <span className="text-gray-500">
 
-                    Kamar
+                    Nomor Kamar
 
                   </span>
 
                   <span className="font-medium">
-
                     {
                       tagihan
                         .sewa
                         ?.kamar
-                        ?.nomor_kamar
+                        ?.id_kamar
                     }
 
                   </span>
@@ -637,7 +653,7 @@ window.snap.pay(
                 ) => (
 
                   <div
-                    key={index}
+                    key={item.id_pembayaran}
                     className="border rounded-2xl p-5 flex items-center justify-between"
                   >
 

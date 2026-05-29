@@ -86,21 +86,87 @@ export async function POST(
         });
       }
 
-      // INSERT PEMBAYARAN
-      await supabase
-        .from("pembayaran")
-        .insert([
-          {
-            id_tagihan:
-              tagihan.id_tagihan,
+      // CARI SEWA
+      const {
+        data: sewa
+      } = await supabase
+        .from("sewa")
+        .select("*")
+        .eq(
+          "id_sewa",
+          tagihan.id_sewa
+        )
+        .single();
 
-            tanggal_pembayaran:
-              new Date(),
+      
+      let tanggalBerakhir;
 
-            status_pembayaran:
-              "Berhasil",
-          },
-        ]);
+      // ============================================
+      // PEMBAYARAN PERTAMA
+      // ============================================
+
+      if (
+        !sewa.tanggal_berakhir_sewa
+      ) {
+
+        tanggalBerakhir =
+          new Date(
+            sewa.tanggal_sewa
+          );
+
+      } else {
+
+        // ============================================
+        // PERPANJANGAN
+        // ============================================
+
+        tanggalBerakhir =
+          new Date(
+            sewa
+              .tanggal_berakhir_sewa
+          );
+      }
+
+      tanggalBerakhir.setMonth(
+        tanggalBerakhir.getMonth() + 1
+      );
+
+      // ============================================
+// CEK PEMBAYARAN SUDAH ADA?
+// ============================================
+
+const {
+  data: pembayaranExist
+} = await supabase
+  .from("pembayaran")
+  .select("*")
+  .eq(
+    "id_tagihan",
+    tagihan.id_tagihan
+  )
+  .maybeSingle();
+
+// ============================================
+// INSERT PEMBAYARAN
+// ============================================
+
+if (!pembayaranExist) {
+
+  await supabase
+    .from("pembayaran")
+    .insert([
+      {
+        id_tagihan:
+          tagihan.id_tagihan,
+
+        tanggal_pembayaran:
+          new Date(),
+
+        status_pembayaran:
+          "Berhasil",
+      },
+    ]);
+}
 
       // UPDATE TAGIHAN
       await supabase
@@ -114,41 +180,43 @@ export async function POST(
           tagihan.id_tagihan
         );
 
+      // ============================================
       // UPDATE SEWA
+      // ============================================
+
       await supabase
         .from("sewa")
         .update({
+
           status_sewa:
             "Aktif",
+
+          tanggal_berakhir_sewa:
+            tanggalBerakhir,
+
         })
         .eq(
           "id_sewa",
           tagihan.id_sewa
         );
-
-      // CARI SEWA
-      const {
-        data: sewa
-      } = await supabase
-        .from("sewa")
-        .select("*")
-        .eq(
-          "id_sewa",
-          tagihan.id_sewa
-        )
-        .single();
 
       // UPDATE RESERVASI
-      await supabase
-        .from("reservasi")
-        .update({
-          status_reservasi:
-            "Berhasil",
-        })
-        .eq(
-          "id_reservasi",
-          sewa.id_reservasi
-        );
+      if (
+        sewa.status_sewa ===
+        "Menunggu Pembayaran"
+      ) {
+
+        await supabase
+          .from("reservasi")
+          .update({
+            status_reservasi:
+              "Berhasil",
+          })
+          .eq(
+            "id_reservasi",
+            sewa.id_reservasi
+          );
+      }
 
       // UPDATE KAMAR
       await supabase

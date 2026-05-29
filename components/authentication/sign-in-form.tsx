@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link"; // <-- Tambahkan import Link
 
 import {
   useEffect,
@@ -42,24 +43,14 @@ export function LoginForm({
   // STATE
   // ============================================
 
-  const [email, setEmail] =
-    useState("");
-
-  const [password, setPassword] =
-    useState("");
-
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const [error, setError] =
-    useState<string | null>(null);
-
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // HYDRATION FIX
-  const [mounted, setMounted] =
-    useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -71,28 +62,17 @@ export function LoginForm({
   // HANDLE LOGIN
   // ============================================
 
-  const handleLogin = async (
-    e: React.FormEvent
-  ) => {
-
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const supabase = createClient();
-
     setIsLoading(true);
-
     setError(null);
 
     try {
-
       // ============================================
       // LOGIN AUTH
       // ============================================
-
-      const {
-        data,
-        error,
-      } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -102,109 +82,56 @@ export function LoginForm({
       const user = data.user;
 
       if (!user) {
-
-        throw new Error(
-          "User tidak ditemukan"
-        );
+        throw new Error("User tidak ditemukan");
       }
 
       // ============================================
       // CEK TABEL PENYEWA
       // ============================================
-
-      const {
-        data: penyewa,
-        error: penyewaError,
-      } = await supabase
+      const { data: penyewa, error: penyewaError } = await supabase
         .from("penyewa")
         .select("*")
-        .eq(
-          "id_penyewa",
-          user.id
-        )
+        .eq("id_penyewa", user.id)
         .maybeSingle();
 
       // DEBUG
-      console.log(
-        "Penyewa:",
-        penyewa
-      );
+      console.log("Penyewa:", penyewa);
 
       // ============================================
       // JIKA PENYEWA
       // ============================================
-
-      if (
-        penyewa &&
-        !penyewaError
-      ) {
-
+      if (penyewa && !penyewaError) {
         // ROLE PENYEWA
-        localStorage.setItem(
-          "role",
-          "3"
-        );
-
+        localStorage.setItem("role", "3");
         router.push("/");
-
         return;
       }
 
       // ============================================
       // CEK TABEL PEGAWAI
       // ============================================
-
-      const {
-        data: pegawai,
-        error: pegawaiError,
-      } = await supabase
+      const { data: pegawai, error: pegawaiError } = await supabase
         .from("pegawai")
         .select("id_role")
         .eq("id_pegawai", user.id)
         .maybeSingle();
 
       // DEBUG ERROR
-      console.log(
-        "Pegawai Error:",
-        pegawaiError
-      );
+      console.log("Pegawai Error:", pegawaiError);
+      console.log("Pegawai:", pegawai);
 
-      console.log(
-        "Pegawai:",
-        pegawai
-      );
-
-            // ============================================
+      // ============================================
       // JIKA PEGAWAI
       // ============================================
-
-      if (
-        pegawai &&
-        !pegawaiError
-      ) {
-
+      if (pegawai && !pegawaiError) {
         // ============================================
         // CEK ROLE
         // ============================================
-
-        if (
-          pegawai.id_role === 1 ||
-          pegawai.id_role === 2
-        ) {
-
+        if (pegawai.id_role === 1 || pegawai.id_role === 2) {
           // SIMPAN ROLE
-          localStorage.setItem(
-            "role",
-            String(
-              pegawai.id_role
-            )
-          );
-
+          localStorage.setItem("role", String(pegawai.id_role));
           // REDIRECT
-          router.push(
-            "/admin/dashboardAdmin"
-          );
-
+          router.push("/admin/dashboardAdmin");
           return;
         }
       }
@@ -212,25 +139,15 @@ export function LoginForm({
       // ============================================
       // ROLE TIDAK DITEMUKAN
       // ============================================
-
-      throw new Error(
-        "Role tidak ditemukan"
-      );
+      throw new Error("Role tidak ditemukan");
 
     } catch (error: unknown) {
-
       console.error(error);
-
       setError(
-        error instanceof Error
-          ? error.message
-          : "Terjadi kesalahan"
+        error instanceof Error ? error.message : "Terjadi kesalahan"
       );
-
     } finally {
-
       setIsLoading(false);
-
     }
   };
 
@@ -240,150 +157,90 @@ export function LoginForm({
 
   return (
     <form
-      className={cn(
-        "flex flex-col gap-6",
-        className
-      )}
+      className={cn("flex flex-col gap-6", className)}
       {...props}
       onSubmit={handleLogin}
     >
-
       <FieldGroup>
-
         {/* TITLE */}
         <div className="flex flex-col items-center gap-1 text-center">
-
           <h1 className="text-2xl font-bold">
-            Login to your account
+            Masuk ke akun Anda
           </h1>
-
           <p className="text-muted-foreground text-sm text-balance">
-            Enter your email below
-            to login to your account
+            Masukkan email Anda di bawah ini.
           </p>
-
         </div>
 
         {/* EMAIL */}
         <Field>
-
-          <FieldLabel htmlFor="email">
-            Email
-          </FieldLabel>
-
+          <FieldLabel htmlFor="email">Email</FieldLabel>
           <Input
             id="email"
             type="email"
-            placeholder="m@example.com"
+            placeholder="m@gmail.com"
             required
             value={email}
-            onChange={(e) =>
-              setEmail(
-                e.target.value
-              )
-            }
+            onChange={(e) => setEmail(e.target.value)}
           />
-
         </Field>
 
         {/* PASSWORD */}
         <Field>
-
           <div className="flex items-center">
-
-            <FieldLabel htmlFor="password">
-              Password
-            </FieldLabel>
-
+            <FieldLabel htmlFor="password">Password</FieldLabel>
           </div>
-
           <InputGroup>
-
             <InputGroupInput
               id="password"
-              type={
-                showPassword
-                  ? "text"
-                  : "password"
-              }
+              type={showPassword ? "text" : "password"}
               required
               value={password}
-              onChange={(e) =>
-                setPassword(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setPassword(e.target.value)}
             />
-
             <InputGroupAddon align="inline-end">
-
               <InputGroupButton
                 type="button"
-                onClick={() =>
-                  setShowPassword(
-                    !showPassword
-                  )
-                }
+                onClick={() => setShowPassword(!showPassword)}
               >
-
-                {showPassword ? (
-                  <EyeOff size={18} />
-                ) : (
-                  <Eye size={18} />
-                )}
-
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </InputGroupButton>
-
             </InputGroupAddon>
-
           </InputGroup>
-
         </Field>
 
         {/* ERROR */}
         {error && (
-
           <p className="text-sm text-red-500">
-
             {error}
-
           </p>
-
         )}
 
         {/* BUTTON */}
         <Field>
-
-          <Button
-            type="submit"
-            disabled={isLoading}
-          >
-
-            {isLoading
-              ? "Logging in..."
-              : "Login"}
-
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Logging in..." : "Login"}
           </Button>
-
         </Field>
 
+        {/* REGISTER LINK */}
+        <div className="text-center text-sm text-muted-foreground mt-2">
+          Belum punya akun?{" "}
+          <Link 
+            href="/authentication/sign-up" 
+            className="text-primary hover:underline font-medium"
+          >
+            Registrasi
+          </Link>
+        </div>
+
         {/* COPYRIGHT */}
-        <FieldDescription className="text-center">
-
-          Copyright ©{" "}
-
-          {mounted
-            ? new Date().getFullYear()
-            : ""}
-
+        <FieldDescription className="text-center mt-4">
+          Copyright © {mounted ? new Date().getFullYear() : ""}
           <br />
-
           All rights reserved.
-
         </FieldDescription>
-
       </FieldGroup>
-
     </form>
   );
 }

@@ -7,7 +7,6 @@ import {
 
 const supabase =
   createClient(
-
     process.env
       .NEXT_PUBLIC_SUPABASE_URL!,
 
@@ -18,6 +17,9 @@ const supabase =
 export async function GET() {
 
   try {
+
+    const today =
+      new Date();
 
     // ============================================
     // GET SEWA AKTIF
@@ -46,35 +48,34 @@ export async function GET() {
       });
     }
 
-    const today =
-      new Date();
+    // ============================================
+    // LOOP SEWA
+    // ============================================
 
-    for (const item of sewa || []) {
+    for (
+      const item of sewa || []
+    ) {
 
-      const tanggalSewa =
-        new Date(
-          item.tanggal_sewa
-        );
+      if (
+        !item.tanggal_berakhir_sewa
+      ) {
+
+        continue;
+      }
 
       // ============================================
-      // TAGIHAN MUNCUL
-      // 10 HARI SEBELUM
+      // 10 HARI SEBELUM BERAKHIR
       // ============================================
 
       const tanggalTagihan =
         new Date(
-          tanggalSewa
+          item.tanggal_berakhir_sewa
         );
-
-      tanggalTagihan.setMonth(
-        tanggalTagihan.getMonth() + 1
-      );
 
       tanggalTagihan.setDate(
         tanggalTagihan.getDate() - 10
       );
 
-      // HARI INI
       const isSameDate =
 
         tanggalTagihan
@@ -85,7 +86,7 @@ export async function GET() {
         continue;
 
       // ============================================
-      // CEK SUDAH ADA TAGIHAN?
+      // CEK TAGIHAN AKTIF
       // ============================================
 
       const {
@@ -111,10 +112,25 @@ export async function GET() {
       }
 
       // ============================================
-      // INSERT TAGIHAN BARU
+      // BATAS PEMBAYARAN
       // ============================================
 
-      await supabase
+      const batasPembayaran =
+        new Date(
+          item.tanggal_berakhir_sewa
+        );
+
+      batasPembayaran.setDate(
+        batasPembayaran.getDate() + 10
+      );
+
+      // ============================================
+      // INSERT TAGIHAN
+      // ============================================
+
+      const {
+        error: insertError
+      } = await supabase
         .from("tagihan")
         .insert([
           {
@@ -123,19 +139,22 @@ export async function GET() {
 
             total_tagihan:
               item.kamar
-                .harga_sewa_kamar,
+                ?.harga_sewa_kamar,
 
             batas_pembayaran:
-              new Date(
-                tanggalSewa.setMonth(
-                  tanggalSewa.getMonth() + 1
-                )
-              ),
+              batasPembayaran,
 
             status_tagihan:
               "Belum Dibayar",
           },
         ]);
+
+      if (insertError) {
+
+        console.log(
+          insertError
+        );
+      }
     }
 
     return NextResponse.json({

@@ -7,7 +7,6 @@ import {
 
 const supabase =
   createClient(
-
     process.env
       .NEXT_PUBLIC_SUPABASE_URL!,
 
@@ -23,21 +22,18 @@ export async function GET() {
       new Date();
 
     // ============================================
-    // GET TAGIHAN BELUM DIBAYAR
+    // GET SEMUA SEWA AKTIF
     // ============================================
 
     const {
-      data: tagihan,
+      data: sewaAktif,
       error,
     } = await supabase
-      .from("tagihan")
-      .select(`
-        *,
-        sewa (*)
-      `)
+      .from("sewa")
+      .select("*")
       .eq(
-        "status_tagihan",
-        "Belum Dibayar"
+        "status_sewa",
+        "Aktif"
       );
 
     if (error) {
@@ -49,27 +45,49 @@ export async function GET() {
       });
     }
 
-    for (const item of tagihan || []) {
+    // ============================================
+    // LOOP SEWA
+    // ============================================
 
-      const batasBayar =
+    for (
+      const sewa of sewaAktif || []
+    ) {
+
+      if (
+        !sewa.tanggal_berakhir_sewa
+      ) {
+
+        continue;
+      }
+
+      const batasAkhir =
         new Date(
-          item.batas_pembayaran
+          sewa.tanggal_berakhir_sewa
         );
 
       // ============================================
-      // SUDAH LEWAT 10 HARI?
+      // TOLERANSI 10 HARI
       // ============================================
 
-      const diff =
-        today.getTime() -
-        batasBayar.getTime();
+      batasAkhir.setDate(
+        batasAkhir.getDate() + 10
+      );
 
-      const diffDays =
-        diff /
-        (1000 * 60 * 60 * 24);
+      // ============================================
+      // BELUM LEWAT TOLERANSI
+      // ============================================
 
-      if (diffDays < 10)
+      if (
+        today < batasAkhir
+      ) {
+
         continue;
+      }
+
+      console.log(
+        "SEWA BERAKHIR:",
+        sewa.id_sewa
+      );
 
       // ============================================
       // UPDATE SEWA
@@ -83,7 +101,22 @@ export async function GET() {
         })
         .eq(
           "id_sewa",
-          item.id_sewa
+          sewa.id_sewa
+        );
+
+      // ============================================
+      // UPDATE RESERVASI
+      // ============================================
+
+      await supabase
+        .from("reservasi")
+        .update({
+          status_reservasi:
+            "Selesai",
+        })
+        .eq(
+          "id_reservasi",
+          sewa.id_reservasi
         );
 
       // ============================================
@@ -98,7 +131,26 @@ export async function GET() {
         })
         .eq(
           "id_kamar",
-          item.sewa.id_kamar
+          sewa.id_kamar
+        );
+
+      // ============================================
+      // UPDATE TAGIHAN BELUM DIBAYAR
+      // ============================================
+
+      await supabase
+        .from("tagihan")
+        .update({
+          status_tagihan:
+            "Kadaluarsa",
+        })
+        .eq(
+          "id_sewa",
+          sewa.id_sewa
+        )
+        .eq(
+          "status_tagihan",
+          "Belum Dibayar"
         );
     }
 
