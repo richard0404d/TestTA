@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { useRouter } from "next/navigation";
-import Link from "next/link"; // <-- Tambahkan import Link
+import Link from "next/link";
 
 import {
   useEffect,
@@ -90,17 +90,20 @@ export function LoginForm({
       // ============================================
       const { data: penyewa, error: penyewaError } = await supabase
         .from("penyewa")
-        .select("*")
+        .select("id_penyewa, status_penyewa") // Ambil status_penyewa
         .eq("id_penyewa", user.id)
         .maybeSingle();
-
-      // DEBUG
-      console.log("Penyewa:", penyewa);
 
       // ============================================
       // JIKA PENYEWA
       // ============================================
       if (penyewa && !penyewaError) {
+        // Cek Status Aktif
+        if (penyewa.status_penyewa !== "Aktif") {
+          await supabase.auth.signOut(); // Logout otomatis
+          throw new Error("Akun penyewa Anda tidak aktif atau sedang ditangguhkan.");
+        }
+
         // ROLE PENYEWA
         localStorage.setItem("role", "3");
         router.push("/");
@@ -112,18 +115,20 @@ export function LoginForm({
       // ============================================
       const { data: pegawai, error: pegawaiError } = await supabase
         .from("pegawai")
-        .select("id_role")
+        .select("id_role, status_pegawai") // Ambil status_pegawai
         .eq("id_pegawai", user.id)
         .maybeSingle();
-
-      // DEBUG ERROR
-      console.log("Pegawai Error:", pegawaiError);
-      console.log("Pegawai:", pegawai);
 
       // ============================================
       // JIKA PEGAWAI
       // ============================================
       if (pegawai && !pegawaiError) {
+        // Cek Status Aktif
+        if (pegawai.status_pegawai !== "Aktif") {
+          await supabase.auth.signOut(); // Logout otomatis
+          throw new Error("Akun pegawai Anda tidak aktif.");
+        }
+
         // ============================================
         // CEK ROLE
         // ============================================
@@ -139,7 +144,8 @@ export function LoginForm({
       // ============================================
       // ROLE TIDAK DITEMUKAN
       // ============================================
-      throw new Error("Role tidak ditemukan");
+      await supabase.auth.signOut(); // Bersihkan sesi tak dikenal
+      throw new Error("Role tidak ditemukan atau akun tidak valid");
 
     } catch (error: unknown) {
       console.error(error);
@@ -211,7 +217,7 @@ export function LoginForm({
 
         {/* ERROR */}
         {error && (
-          <p className="text-sm text-red-500">
+          <p className="text-sm text-red-500 font-medium">
             {error}
           </p>
         )}

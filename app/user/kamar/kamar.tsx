@@ -28,6 +28,12 @@ export default function KamarPenyewaPage() {
     nomor_telepon2: "",
   });
 
+  const statusColors: any = {
+  "Baik": "bg-green-100 text-green-700",
+  "Rusak": "bg-red-100 text-red-700",
+  "Sedang Diperbaiki": "bg-yellow-100 text-yellow-700",
+};
+
   // State Toast
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
@@ -267,7 +273,7 @@ export default function KamarPenyewaPage() {
                 {fasilitas.map((f, idx) => (
                   <div key={idx} className="flex justify-between items-center p-3 border rounded-xl bg-gray-50">
                     <span className="font-medium text-gray-700">{f.fasilitas?.nama_fasilitas}</span>
-                    <span className={`text-xs px-2 py-1 rounded-md font-semibold ${f.kondisi_fasilitas === 'Baik' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <span className={`text-xs px-2 py-1 rounded-md font-semibold ${statusColors[f.kondisi_fasilitas] || 'bg-gray-100 text-gray-700'}`}>
                       {f.kondisi_fasilitas}
                     </span>
                   </div>

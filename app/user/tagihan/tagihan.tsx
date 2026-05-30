@@ -308,7 +308,7 @@ console.log(
                         Informasi Tagihan
                       </p>
 
-                      <div className="space-y-1 text-sm">
+                      <div className="space-y-1 font-medium text-base md:text-lg">
 
                         <p>
 

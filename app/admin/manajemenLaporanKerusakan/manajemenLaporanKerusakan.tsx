@@ -1,43 +1,51 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Eye, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenLaporanKerusakan() {
   const supabase = createClient();
-  const [laporan, setLaporan] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [laporan, setLaporan] = useState<any[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<any>(null);
 
-  // ============================================
-  // LOAD DATA
-  // ============================================
+  // PAGINATION STATE
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // TOAST STATE
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
+
   useEffect(() => {
     getLaporan();
   }, []);
 
-  // ============================================
-  // GET DATA
-  // ============================================
   async function getLaporan() {
     setLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
 
     const { data, error } = await supabase
       .from("laporan_kerusakan")
       .select(`
         *,
-        fasilitas (
-          id_fasilitas,
-          nama_fasilitas
-        ),
+        fasilitas ( nama_fasilitas ),
         detail_fasilitas_kamar (
           id_detail_fasiliitas_kamar,
           kondisi_fasilitas
         ),
-        sewa!inner (
-          id_penyewa
-        )
+        sewa!inner ( id_penyewa )
       `)
       .order("created_at", { ascending: false });
 
@@ -47,42 +55,15 @@ export default function ManajemenLaporanKerusakan() {
       return;
     }
 
-    // ============================================
-    // GET USER DATA
-    // ============================================
     const laporanFix = await Promise.all(
       (data || []).map(async (item) => {
-        let nama = "-";
-        let namaPegawai = "-";
-
-        // NAMA PENYEWA
-        const { data: userData } = await supabase
-          .from("penyewa")
-          .select("*")
-          .eq("id_penyewa", item.sewa?.id_penyewa)
-          .single();
-
-        if (userData?.nama_penyewa) {
-          nama = userData.nama_penyewa;
-        }
-
-        // NAMA PEGAWAI
-        if (item.id_pegawai) {
-          const { data: pegawaiData } = await supabase
-            .from("pegawai")
-            .select("nama_pegawai")
-            .eq("id_pegawai", item.id_pegawai)
-            .single();
-
-          if (pegawaiData?.nama_pegawai) {
-            namaPegawai = pegawaiData.nama_pegawai;
-          }
-        }
-
+        const { data: userData } = await supabase.from("penyewa").select("nama_penyewa").eq("id_penyewa", item.sewa?.id_penyewa).single();
+        const { data: pegawaiData } = item.id_pegawai ? await supabase.from("pegawai").select("nama_pegawai").eq("id_pegawai", item.id_pegawai).single() : { data: null };
+        
         return {
           ...item,
-          nama_penyewa: nama,
-          nama_pegawai: namaPegawai,
+          nama_penyewa: userData?.nama_penyewa || "-",
+          nama_pegawai: pegawaiData?.nama_pegawai || "-",
         };
       })
     );
@@ -91,142 +72,153 @@ export default function ManajemenLaporanKerusakan() {
     setLoading(false);
   }
 
-  // ============================================
-  // UPDATE STATUS
-  // ============================================
   async function updateStatus(idKerusakan: number, statusBaru: string) {
     const { data: { user } } = await supabase.auth.getUser();
 
     const { error } = await supabase
       .from("laporan_kerusakan")
-      .update({
-        status_perbaikan: statusBaru,
-        id_pegawai: user?.id,
-      })
+      .update({ status_perbaikan: statusBaru, id_pegawai: user?.id })
       .eq("id_kerusakan", idKerusakan);
 
     if (error) {
-      console.log(error);
-      alert("Gagal update status");
+      showToast("Gagal update status", "error");
       return;
     }
 
+    // Ambil detail untuk update kondisi fasilitas
     const { data: laporanData } = await supabase
       .from("laporan_kerusakan")
-      .select("*")
+      .select("id_detail_fasiliitas_kamar")
       .eq("id_kerusakan", idKerusakan)
       .single();
 
-    let kondisi = "Baik";
-
-    if (statusBaru === "Menunggu Perbaikan") {
-      kondisi = "Rusak";
-    }
-    if (statusBaru === "Proses Perbaikan") {
-      kondisi = "Sedang Diperbaiki";
-    }
-    if (statusBaru === "Sudah Diperbaiki" || statusBaru === "Ditolak") {
-      kondisi = "Baik";
-    }
+    let kondisi = statusBaru === "Sudah Diperbaiki" || statusBaru === "Ditolak" ? "Baik" : 
+                  statusBaru === "Proses Perbaikan" ? "Sedang Diperbaiki" : "Rusak";
 
     await supabase
       .from("detail_fasilitas_kamar")
       .update({ kondisi_fasilitas: kondisi })
       .eq("id_detail_fasiliitas_kamar", laporanData?.id_detail_fasiliitas_kamar);
 
-    alert("Status berhasil diupdate");
+    showToast("Status berhasil diupdate", "success");
     getLaporan();
   }
 
-  // ============================================
-  // FORMAT TANGGAL
-  // ============================================
+  // LOGIKA PAGINATION
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentLaporan = laporan.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(laporan.length / itemsPerPage);
+
   function formatTanggal(tanggal: string) {
-    return new Date(tanggal).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    return new Date(tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
   }
 
   return (
     <main className="pt-24 md:ml-[260px] p-5 md:p-8">
+      {/* TOAST */}
+      {toast.show && (
+        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+          {toast.type === "success" ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+          <p className="font-medium">{toast.message}</p>
+        </div>
+      )}
+
       <div className="md:pt-20">
-        {/* CARD */}
         <div className="bg-white rounded-3xl border shadow-sm p-6 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">
-              Manajemen Laporan Kerusakan
-            </h1>
-            <p className="text-gray-500 mt-1">
-              Kelola data laporan kerusakan kos
-            </p>
-          </div>
+          <h1 className="text-3xl font-bold text-gray-800">Manajemen Laporan Kerusakan</h1>
+          <p className="text-gray-500 mt-1">Kelola data laporan kerusakan kos</p>
         </div>
 
-        {/* TABLE */}
-        <div className="overflow-x-auto rounded-2xl border bg-white">
-          <table className="w-full min-w-[1200px]">
+        <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
+          <table className="w-full min-w-[1000px]">
             <thead className="bg-gray-100">
               <tr>
-                <th className="text-left px-6 py-4">Nama Penyewa</th>
-                <th className="text-left px-6 py-4">Nomor Kamar</th>
-                <th className="text-left px-6 py-4">Nama Fasilitas</th>
-                <th className="text-left px-6 py-4">Tanggal</th>
-                <th className="text-center px-6 py-4">Status</th>
-                <th className="text-center px-6 py-4">Aksi</th>
+                <th className="text-left px-6 py-4 font-semibold">Nama Penyewa</th>
+                <th className="text-left px-6 py-4 font-semibold">Nomor Kamar</th>
+                <th className="text-left px-6 py-4 font-semibold">Fasilitas</th>
+                <th className="text-left px-6 py-4 font-semibold">Tanggal</th>
+                <th className="text-center px-6 py-4 font-semibold">Status</th>
+                <th className="text-center px-6 py-4 font-semibold">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={6} className="text-center py-20">
-                    Loading...
-                  </td>
-                </tr>
+              {loading ? (
+                <tr><td colSpan={6} className="text-center py-20">Loading...</td></tr>
+              ) : currentLaporan.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-20 text-gray-400">Data laporan tidak ditemukan</td></tr>
+              ) : (
+                currentLaporan.map((item) => (
+                  <tr key={item.id_kerusakan} className="border-t hover:bg-gray-50 transition">
+                    <td className="px-6 py-4">{item.nama_penyewa}</td>
+                    <td className="px-6 py-4">Kamar {item.id_kamar}</td>
+                    <td className="px-6 py-4">{item.fasilitas?.nama_fasilitas}</td>
+                    <td className="px-6 py-4">{formatTanggal(item.created_at)}</td>
+                    <td className="px-6 py-4 text-center">
+                      <select value={item.status_perbaikan} onChange={(e) => updateStatus(item.id_kerusakan, e.target.value)} className="border rounded-lg px-3 py-2 outline-none">
+                        <option>Menunggu Perbaikan</option>
+                        <option>Proses Perbaikan</option>
+                        <option>Sudah Diperbaiki</option>
+                        <option>Ditolak</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button onClick={() => setSelectedDetail(item)} className="p-3 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition">
+                        <Eye size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
-
-              {!loading && laporan.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center py-20 text-gray-400">
-                    Data laporan kerusakan belum tersedia
-                  </td>
-                </tr>
-              )}
-
-              {laporan.map((item) => (
-                <tr key={item.id_kerusakan} className="border-t">
-                  <td className="px-6 py-4">{item.nama_penyewa}</td>
-                  <td className="px-6 py-4">Kamar {item.id_kamar}</td>
-                  <td className="px-6 py-4">{item.fasilitas?.nama_fasilitas}</td>
-                  <td className="px-6 py-4">{formatTanggal(item.created_at)}</td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={item.status_perbaikan}
-                      onChange={(e) => updateStatus(item.id_kerusakan, e.target.value)}
-                      className="border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option>Menunggu Perbaikan</option>
-                      <option>Proses Perbaikan</option>
-                      <option>Sudah Diperbaiki</option>
-                      <option>Ditolak</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => {
-                        const dataTerbaru = laporan.find((x) => x.id_kerusakan === item.id_kerusakan);
-                        setSelectedDetail(dataTerbaru);
-                      }}
-                      className="p-3 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition"
-                    >
-                      <Eye size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
+
+          {/* ============================================ */}
+          {/* PAGINATION UI */}
+          {/* ============================================ */}
+          {laporan.length > 0 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+              
+              <div className="text-sm text-gray-500">
+                Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, laporan.length)} dari {laporan.length} data
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                    <button
+                      key={number}
+                      onClick={() => setCurrentPage(number)}
+                      className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                        currentPage === number
+                          ? "bg-[#1c3163] text-white border-[#1c3163]"
+                          : "bg-white text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      {number}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+
+            </div>
+          )}
         </div>
       </div>
 
@@ -342,7 +334,7 @@ export default function ManajemenLaporanKerusakan() {
 
               {/* PEGAWAI */}
               <div>
-                <label className="font-semibold text-gray-700">Pegawai Yang Mengubah Status</label>
+                <label className="font-semibold text-gray-700">Pegawai Yang Mengubah Status Terakhir</label>
                 <input
                   type="text"
                   value={selectedDetail.nama_pegawai || "-"}

@@ -8,6 +8,8 @@ import {
 import {
   Eye,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import {
@@ -27,6 +29,12 @@ export default function ManajemenSewa() {
 
   const [selectedDetail, setSelectedDetail] =
     useState<any>(null);
+
+  // ============================================
+  // PAGINATION STATE
+  // ============================================
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // ============================================
   // LOAD DATA
@@ -112,6 +120,16 @@ export default function ManajemenSewa() {
     );
   }
 
+  // ============================================
+  // LOGIKA PAGINATION
+  // ============================================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = sewaList.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(sewaList.length / itemsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
   return (
     <main className="pt-24 md:ml-[260px] p-5 md:p-8">
 
@@ -139,7 +157,7 @@ export default function ManajemenSewa() {
 
         <div className="pt-8">
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
+          <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
 
             <table className="w-full min-w-[1000px]">
 
@@ -147,23 +165,23 @@ export default function ManajemenSewa() {
 
                 <tr>
 
-                  <th className="text-left px-6 py-4 font-semibold">
+                  <th className="text-left px-6 py-4 font-semibold text-gray-700">
                     Nama Penyewa
                   </th>
 
-                  <th className="text-left px-6 py-4 font-semibold">
+                  <th className="text-left px-6 py-4 font-semibold text-gray-700">
                     Nomor Kamar
                   </th>
 
-                  <th className="text-left px-6 py-4 font-semibold">
+                  <th className="text-left px-6 py-4 font-semibold text-gray-700">
                     Jumlah Penghuni
                   </th>
 
-                  <th className="text-left px-6 py-4 font-semibold">
+                  <th className="text-left px-6 py-4 font-semibold text-gray-700">
                     Status Sewa
                   </th>
 
-                  <th className="text-center px-6 py-4 font-semibold">
+                  <th className="text-center px-6 py-4 font-semibold text-gray-700">
                     Aksi
                   </th>
 
@@ -179,7 +197,7 @@ export default function ManajemenSewa() {
 
                     <td
                       colSpan={5}
-                      className="text-center py-20"
+                      className="text-center py-20 text-gray-400"
                     >
                       Loading...
                     </td>
@@ -204,18 +222,18 @@ export default function ManajemenSewa() {
 
                 )}
 
-                {sewaList.map(
+                {!loading && sewaList.length > 0 && currentItems.map(
                   (item) => (
 
                     <tr
                       key={
                         item.id_sewa
                       }
-                      className="border-t"
+                      className="border-t hover:bg-gray-50 transition"
                     >
 
                       {/* NAMA */}
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-gray-800 font-medium">
 
                         {
                           item.penyewa
@@ -225,7 +243,7 @@ export default function ManajemenSewa() {
                       </td>
 
                       {/* KAMAR */}
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-gray-800">
 
                         Kamar {
                           item.id_kamar
@@ -234,7 +252,7 @@ export default function ManajemenSewa() {
                       </td>
 
                       {/* PENGHUNI */}
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-gray-800">
 
                         {
                           item.reservasi
@@ -249,11 +267,13 @@ export default function ManajemenSewa() {
                       <td className="px-6 py-4">
 
                         <span
-                          className="
-                            px-3 py-1
-                            rounded-full
-                            bg-gray-100
-                          "
+                          className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            item.status_sewa === "Aktif"
+                              ? "bg-green-100 text-green-700"
+                              : item.status_sewa === "Berakhir"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
                         >
                           {
                             item.status_sewa
@@ -263,23 +283,20 @@ export default function ManajemenSewa() {
                       </td>
 
                       {/* AKSI */}
-                      <td className="px-6 py-4 text-center">
-
-                        <button
-                          onClick={() =>
-                            setSelectedDetail(
-                              item
-                            )
-                          }
-                          className="
-                            p-3 rounded-xl
-                            bg-blue-100
-                            text-blue-600
-                          "
-                        >
-                          <Eye size={18} />
-                        </button>
-
+                      <td className="px-6 py-4">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() =>
+                              setSelectedDetail(
+                                item
+                              )
+                            }
+                            className="p-3 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition"
+                            title="Detail Sewa"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -290,6 +307,53 @@ export default function ManajemenSewa() {
               </tbody>
 
             </table>
+
+            {/* ============================================ */}
+            {/* PAGINATION UI */}
+            {/* ============================================ */}
+            {!loading && sewaList.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                
+                <div className="text-sm text-gray-500">
+                  Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, sewaList.length)} dari {sewaList.length} data
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                      <button
+                        key={number}
+                        onClick={() => paginate(number)}
+                        className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                          currentPage === number
+                            ? "bg-[#1c3163] text-white border-[#1c3163]"
+                            : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+
+              </div>
+            )}
 
           </div>
 
@@ -317,204 +381,142 @@ export default function ManajemenSewa() {
           <div
             className="
               bg-white
-              rounded-2xl
+              rounded-3xl
               w-full
               max-w-2xl
-              p-6
-              space-y-5
+              p-8
+              space-y-6
               max-h-[90vh]
-              overflow-auto
+              overflow-y-auto
+              relative
+              animate-in fade-in zoom-in duration-200
             "
           >
 
-            {/* HEADER */}
+            {/* CLOSE BUTTON */}
+            <button
+              onClick={() =>
+                setSelectedDetail(
+                  null
+                )
+              }
+              className="absolute top-6 right-6 text-gray-400 hover:text-red-500 transition"
+            >
+              <X size={24} />
+            </button>
 
-            <div className="flex justify-between items-center">
+            {/* TITLE */}
+            <h2 className="text-3xl font-bold text-gray-800 mb-8">
+              Detail Sewa
+            </h2>
 
-              <h2 className="text-2xl font-bold">
-                Detail Sewa
-              </h2>
+            <div className="space-y-5">
+              {/* NAMA */}
+              <div>
 
-              <button
-                onClick={() =>
-                  setSelectedDetail(
-                    null
-                  )
-                }
-              >
-                <X />
-              </button>
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Nama Penyewa
+                </label>
 
-            </div>
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  {
+                    selectedDetail
+                      ?.penyewa
+                      ?.nama_penyewa || "-"
+                  }
+                </div>
 
-            {/* NAMA */}
+              </div>
 
-            <div>
+              {/* KAMAR */}
+              <div>
 
-              <label className="font-semibold">
-                Nama Penyewa
-              </label>
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Nomor Kamar
+                </label>
 
-              <input
-                type="text"
-                readOnly
-                value={
-                  selectedDetail
-                    ?.penyewa
-                    ?.nama_penyewa || "-"
-                }
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  Kamar {selectedDetail.id_kamar}
+                </div>
 
-            </div>
+              </div>
 
-            {/* KAMAR */}
+              {/* PENGHUNI */}
+              <div>
 
-            <div>
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Jumlah Penghuni
+                </label>
 
-              <label className="font-semibold">
-                Nomor Kamar
-              </label>
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  {selectedDetail?.reservasi?.jumlah_penghuni || 0} Orang
+                </div>
 
-              <input
-                type="text"
-                readOnly
-                value={`Kamar ${selectedDetail.id_kamar}`}
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
+              </div>
 
-            </div>
+              {/* STATUS */}
+              <div>
 
-            {/* PENGHUNI */}
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Status Sewa
+                </label>
 
-            <div>
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  {
+                    selectedDetail.status_sewa
+                  }
+                </div>
 
-              <label className="font-semibold">
-                Jumlah Penghuni
-              </label>
+              </div>
 
-              <input
-                type="text"
-                readOnly
-                value={`${selectedDetail?.reservasi?.jumlah_penghuni || 0} Orang`}
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
+              {/* TANGGAL */}
+              <div>
 
-            </div>
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Tanggal Sewa
+                </label>
 
-            {/* STATUS */}
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  {formatTanggal(
+                    selectedDetail.tanggal_sewa
+                  )}
+                </div>
 
-            <div>
+              </div>
 
-              <label className="font-semibold">
-                Status Sewa
-              </label>
+              {/* TELEPON */}
+              <div>
 
-              <input
-                type="text"
-                readOnly
-                value={
-                  selectedDetail.status_sewa
-                }
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Nomor Telepon
+                </label>
 
-            </div>
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  {
+                    selectedDetail
+                      ?.penyewa
+                      ?.nomor_telepon_penyewa || "-"
+                  }
+                </div>
 
-            {/* TANGGAL */}
+              </div>
 
-            <div>
+              {/* EMAIL */}
+              <div>
 
-              <label className="font-semibold">
-                Tanggal Sewa
-              </label>
+                <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
+                  Email
+                </label>
 
-              <input
-                type="text"
-                readOnly
-                value={formatTanggal(
-                  selectedDetail.tanggal_sewa
-                )}
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
+                  {
+                    selectedDetail
+                      ?.penyewa
+                      ?.email_penyewa || "-"
+                  }
+                </div>
 
-            </div>
-
-            {/* TELEPON */}
-
-            <div>
-
-              <label className="font-semibold">
-                Nomor Telepon
-              </label>
-
-              <input
-                type="text"
-                readOnly
-                value={
-                  selectedDetail
-                    ?.penyewa
-                    ?.nomor_telepon_penyewa || "-"
-                }
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
-
-            </div>
-
-            {/* EMAIL */}
-
-            <div>
-
-              <label className="font-semibold">
-                Email
-              </label>
-
-              <input
-                type="text"
-                readOnly
-                value={
-                  selectedDetail
-                    ?.penyewa
-                    ?.email_penyewa || "-"
-                }
-                className="
-                  w-full border
-                  rounded-lg
-                  p-3 mt-2
-                  bg-gray-100
-                "
-              />
-
+              </div>
             </div>
 
           </div>

@@ -192,6 +192,42 @@ export default function Reservasi() {
     }
   };
 
+  function tambahSatuBulan(
+  tanggalAwal: string
+) {
+
+  const start =
+    new Date(tanggalAwal);
+
+  const tahun =
+    start.getFullYear();
+
+  const bulan =
+    start.getMonth();
+
+  const tanggal =
+    start.getDate();
+
+  const lastDayTarget =
+    new Date(
+      tahun,
+      bulan + 2,
+      0
+    ).getDate();
+
+  const tanggalFix =
+    Math.min(
+      tanggal,
+      lastDayTarget
+    );
+
+  return new Date(
+    tahun,
+    bulan + 1,
+    tanggalFix
+  );
+}
+
   // ============================================
   // HANDLE SUBMIT
   // ============================================
@@ -311,8 +347,21 @@ export default function Reservasi() {
       // ============================================
       // INSERT SEWA
       // ============================================
-      const tanggalBerakhir = new Date(form.tanggal);
-      tanggalBerakhir.setMonth(tanggalBerakhir.getMonth() + 1);
+      const tanggalBerakhir =
+      tambahSatuBulan(
+        form.tanggal
+      );
+
+      const tanggalBerakhirString =
+      `${tanggalBerakhir.getFullYear()}-${
+        String(
+          tanggalBerakhir.getMonth() + 1
+        ).padStart(2, "0")
+      }-${
+        String(
+          tanggalBerakhir.getDate()
+        ).padStart(2, "0")
+      }`;
 
       const { data: sewaData, error: sewaError } = await supabase
         .from("sewa")
@@ -322,7 +371,7 @@ export default function Reservasi() {
             id_penyewa: user.id,
             id_kamar: Number(form.kamar),
             tanggal_sewa: form.tanggal,
-            tanggal_berakhir_sewa: tanggalBerakhir,
+            tanggal_berakhir_sewa: tanggalBerakhirString,
             status_sewa: "Menunggu Pembayaran",
           },
         ])

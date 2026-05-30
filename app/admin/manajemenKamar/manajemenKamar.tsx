@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Pencil, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Pencil, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenKamar() {
   // ============================================
@@ -17,6 +17,10 @@ export default function ManajemenKamar() {
   const [loading, setLoading] = useState(false);
   const [kamers, setKamers] = useState<any[]>([]);
   const [editId, setEditId] = useState<number | null>(null);
+
+  // STATE PAGINATION
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Toast Notification State
   const [toast, setToast] = useState({
@@ -127,7 +131,7 @@ export default function ManajemenKamar() {
           .update({
             harga_sewa_kamar: Number(form.harga_sewa_kamar),
             harga_tambahan_penyewa: Number(form.harga_tambahan_penyewa || 0),
-            status_kamar: form.status_kamar,
+            // Status sengaja tidak di-update dari form saat edit karena readonly
           })
           .eq("id_kamar", editId);
 
@@ -167,6 +171,16 @@ export default function ManajemenKamar() {
       setLoading(false);
     }
   };
+
+  // ============================================
+  // LOGIKA PAGINATION
+  // ============================================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = kamers.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(kamers.length / itemsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
@@ -221,7 +235,7 @@ export default function ManajemenKamar() {
           {/* TABLE */}
           {/* ============================================ */}
           <div className="pt-8">
-            <div className="overflow-x-auto rounded-2xl border bg-white">
+            <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
               <table className="w-full min-w-[800px]">
                 {/* HEAD */}
                 <thead className="bg-gray-100">
@@ -237,7 +251,7 @@ export default function ManajemenKamar() {
                 {/* BODY */}
                 <tbody>
                   {kamers.length > 0 ? (
-                    kamers.map((kamar, index) => (
+                    currentItems.map((kamar, index) => (
                       <tr key={index} className="border-t hover:bg-gray-50 transition">
                         {/* ID */}
                         <td className="px-6 py-4 text-gray-800 font-medium">Kamar {kamar.id_kamar}</td>
@@ -272,10 +286,20 @@ export default function ManajemenKamar() {
                         {/* AKSI */}
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-center gap-2">
-                            {/* EDIT */}
+                            {/* EDIT - HANYA BISA DIKLIK JIKA STATUS TERSEDIA */}
                             <button
                               onClick={() => handleEdit(kamar)}
-                              className="p-2 rounded-lg bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition"
+                              disabled={kamar.status_kamar !== "Tersedia"}
+                              className={`p-3 rounded-xl transition ${
+                                kamar.status_kamar === "Tersedia"
+                                  ? "bg-yellow-100 text-yellow-600 hover:bg-yellow-200"
+                                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                              }`}
+                              title={
+                                kamar.status_kamar === "Tersedia" 
+                                  ? "Edit Harga Kamar" 
+                                  : "Hanya kamar dengan status Tersedia yang dapat diubah harganya"
+                              }
                             >
                               <Pencil size={18} />
                             </button>
@@ -292,6 +316,53 @@ export default function ManajemenKamar() {
                   )}
                 </tbody>
               </table>
+
+              {/* ============================================ */}
+              {/* PAGINATION UI */}
+              {/* ============================================ */}
+              {kamers.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                  
+                  <div className="text-sm text-gray-500">
+                    Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, kamers.length)} dari {kamers.length} data
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                        <button
+                          key={number}
+                          onClick={() => paginate(number)}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                            currentPage === number
+                              ? "bg-[#1c3163] text-white border-[#1c3163]"
+                              : "bg-white text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -348,7 +419,7 @@ export default function ManajemenKamar() {
                   />
                 </div>
 
-                {/* STATUS */}
+                {/* STATUS - DIBUAT READONLY SAAT EDIT */}
                 <div>
                   <label className="block mb-2 font-medium text-gray-700">
                     Status Kamar
@@ -357,7 +428,10 @@ export default function ManajemenKamar() {
                     name="status_kamar"
                     value={form.status_kamar}
                     onChange={handleChange}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-200 bg-white"
+                    disabled={!!editId} // Nonaktifkan jika sedang mengedit
+                    className={`w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-200 ${
+                      editId ? "bg-gray-100 text-gray-500 cursor-not-allowed" : "bg-white"
+                    }`}
                   >
                     <option value="Tersedia">Tersedia</option>
                     <option value="Ditempati">Ditempati</option>

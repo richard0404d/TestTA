@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Pencil, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Pencil, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenPenggunaView() {
   // ============================================
@@ -26,12 +26,21 @@ export default function ManajemenPenggunaView() {
   // File Upload State untuk KTP
   const [fileKtp, setFileKtp] = useState<File | null>(null);
 
+  // ============================================
+  // PAGINATION STATE
+  // ============================================
+  const [currentPagePegawai, setCurrentPagePegawai] = useState(1);
+  const [currentPagePenyewa, setCurrentPagePenyewa] = useState(1);
+  const itemsPerPage = 5;
+
   // Toast Notification State
   const [toast, setToast] = useState({
     show: false,
     message: "",
     type: "success", // 'success' | 'error'
   });
+
+  const isNumber = (val: string) => /^\d*$/.test(val);
 
   // ============================================
   // HELPER TOAST
@@ -63,7 +72,7 @@ export default function ManajemenPenggunaView() {
     email_penyewa: "",
     password: "",
     nomor_telepon_penyewa: "",
-    ktp_penyewa: "",
+    ktp_penyewa: "", // Menyimpan URL gambar KTP
     jenis_kelamin: "true", // Default 'true' = Pria
     status_penyewa: "Aktif",
   });
@@ -112,9 +121,16 @@ export default function ManajemenPenggunaView() {
   // HANDLE INPUT PEGAWAI
   // ============================================
   const handlePegawaiChange = (e: any) => {
+    const { name, value } = e.target;
+    
+    // Jika field yang diubah adalah nomor telepon, validasi hanya angka
+    if (name === "nomor_telepon_pegawai") {
+      if (!isNumber(value)) return; // Berhenti jika bukan angka
+    }
+    
     setPegawaiForm({
       ...pegawaiForm,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 
@@ -122,9 +138,16 @@ export default function ManajemenPenggunaView() {
   // HANDLE INPUT PENYEWA
   // ============================================
   const handlePenyewaChange = (e: any) => {
+    const { name, value } = e.target;
+    
+    // Jika field yang diubah adalah nomor telepon, validasi hanya angka
+    if (name === "nomor_telepon_penyewa") {
+      if (!isNumber(value)) return; // Berhenti jika bukan angka
+    }
+    
     setPenyewaForm({
       ...penyewaForm,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
   };
 
@@ -136,7 +159,6 @@ export default function ManajemenPenggunaView() {
       setLoading(true);
 
       // --- VALIDASI PEGAWAI BARU ---
-      // Jika mode tambah (editPegawaiId kosong) dan email/password belum diisi
       if (!editPegawaiId && (!pegawaiForm.email_pegawai || !pegawaiForm.password)) {
         showToast("Email dan Password wajib diisi untuk pegawai baru!", "error");
         setLoading(false);
@@ -222,7 +244,6 @@ export default function ManajemenPenggunaView() {
       setLoading(true);
 
       // --- VALIDASI PENYEWA BARU ---
-      // Jika mode tambah (editPenyewaId kosong) dan email/password belum diisi
       if (!editPenyewaId && (!penyewaForm.email_penyewa || !penyewaForm.password)) {
         showToast("Email dan Password wajib diisi untuk penyewa baru!", "error");
         setLoading(false);
@@ -235,16 +256,16 @@ export default function ManajemenPenggunaView() {
         const fileExt = fileKtp.name.split(".").pop();
         const fileName = `ktp-${Date.now()}.${fileExt}`;
 
-        // Asumsi bucket Supabase bernama 'berkas_ktp'
+        // Asumsi bucket Supabase bernama 'ktp'
         const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("berkas_ktp") 
+          .from("ktp") 
           .upload(fileName, fileKtp);
 
         if (uploadError) throw uploadError;
 
         // Ambil URL public
         const { data: publicUrlData } = supabase.storage
-          .from("berkas_ktp")
+          .from("ktp")
           .getPublicUrl(uploadData.path);
           
         fotoKtpUrl = publicUrlData.publicUrl;
@@ -256,14 +277,13 @@ export default function ManajemenPenggunaView() {
         nama_penyewa: penyewaForm.nama_penyewa,
         email_penyewa: penyewaForm.email_penyewa,
         nomor_telepon_penyewa: penyewaForm.nomor_telepon_penyewa,
-        ktp_penyewa: penyewaForm.ktp_penyewa,
-        jenis_kelamin: isPria, // Konversi ke boolean
+        jenis_kelamin_penyewa: isPria, // Konversi ke boolean
         status_penyewa: penyewaForm.status_penyewa,
       };
 
       // Tambahkan url foto KTP jika file diunggah
       if (fotoKtpUrl) {
-        payload.foto_ktp = fotoKtpUrl;
+        payload.ktp_penyewa = fotoKtpUrl;
       }
 
       // ============================================
@@ -276,11 +296,62 @@ export default function ManajemenPenggunaView() {
           .eq("id_penyewa", editPenyewaId);
 
         if (error) throw error;
+
+        // --- TRIGGER OTOMATIS: JIKA STATUS NON-AKTIF ATAU DITANGGUHKAN ---
+        if (payload.status_penyewa === "Non-Aktif" || payload.status_penyewa === "Ditangguhkan") {
+          
+          // Cari data sewa yang masih berjalan (bukan "Berakhir")
+          const { data: sewaAktif, error: sewaError } = await supabase
+            .from("sewa")
+            .select("id_sewa, id_kamar, id_reservasi")
+            .eq("id_penyewa", editPenyewaId)
+            .neq("status_sewa", "Berakhir");
+
+          if (sewaAktif && sewaAktif.length > 0) {
+            for (const sewa of sewaAktif) {
+              // 1. Update Sewa menjadi "Berakhir"
+              await supabase
+                .from("sewa")
+                .update({ status_sewa: "Berakhir" })
+                .eq("id_sewa", sewa.id_sewa);
+
+              // 2. Update Reservasi menjadi "Selesai"
+              if (sewa.id_reservasi) {
+                await supabase
+                  .from("reservasi")
+                  .update({ status_reservasi: "Selesai" })
+                  .eq("id_reservasi", sewa.id_reservasi);
+              }
+
+              // 3. Update Kamar menjadi "Tersedia"
+              if (sewa.id_kamar) {
+                await supabase
+                  .from("kamar")
+                  .update({ status_kamar: "Tersedia" })
+                  .eq("id_kamar", sewa.id_kamar);
+              }
+
+              // 4. Update Tagihan menjadi "Kadaluarsa" (Khusus yang belum dibayar)
+              await supabase
+                .from("tagihan")
+                .update({ status_tagihan: "Kadaluarsa" })
+                .eq("id_sewa", sewa.id_sewa)
+                .eq("status_tagihan", "Belum Dibayar");
+            }
+          }
+        }
+
         showToast("Penyewa berhasil diupdate", "success");
       } else {
         // ============================================
         // INSERT AUTH USER
         // ============================================
+        if (!fotoKtpUrl) {
+          showToast("Foto KTP wajib diunggah untuk penyewa baru!", "error");
+          setLoading(false);
+          return;
+        }
+
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: penyewaForm.email_penyewa,
           password: penyewaForm.password,
@@ -297,7 +368,7 @@ export default function ManajemenPenggunaView() {
         // INSERT PENYEWA BARU
         // ============================================
         payload.id_penyewa = userId;
-        payload.id_role = 3; 
+        payload.role = 3; 
 
         const { error } = await supabase.from("penyewa").insert([payload]);
 
@@ -327,6 +398,17 @@ export default function ManajemenPenggunaView() {
       setLoading(false);
     }
   };
+
+  // LOGIKA PAGINATION ITEMS
+  const indexOfLastPegawai = currentPagePegawai * itemsPerPage;
+  const indexOfFirstPegawai = indexOfLastPegawai - itemsPerPage;
+  const currentPegawai = pegawai.slice(indexOfFirstPegawai, indexOfLastPegawai);
+  const totalPagesPegawai = Math.ceil(pegawai.length / itemsPerPage);
+
+  const indexOfLastPenyewa = currentPagePenyewa * itemsPerPage;
+  const indexOfFirstPenyewa = indexOfLastPenyewa - itemsPerPage;
+  const currentPenyewa = penyewa.slice(indexOfFirstPenyewa, indexOfLastPenyewa);
+  const totalPagesPenyewa = Math.ceil(penyewa.length / itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
@@ -372,15 +454,23 @@ export default function ManajemenPenggunaView() {
                 onClick={() => {
                   setOpenPegawai(true);
                   setEditPegawaiId(null);
+                  setPegawaiForm({
+                    nama_pegawai: "",
+                    email_pegawai: "",
+                    password: "",
+                    nomor_telepon_pegawai: "",
+                    id_role: "2",
+                    status_pegawai: "Aktif",
+                  });
                 }}
-                className="flex items-center gap-2 bg-[#1c3163] text-white px-5 py-3 rounded-xl"
+                className="flex items-center gap-2 bg-[#1c3163] text-white px-5 py-3 rounded-xl hover:bg-[#16274f] transition"
               >
                 <Plus size={18} />
                 Tambah Pegawai
               </button>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border">
+            <div className="overflow-x-auto rounded-2xl border flex flex-col bg-white">
               <table className="w-full">
                 <thead className="bg-gray-100">
                   <tr>
@@ -393,44 +483,92 @@ export default function ManajemenPenggunaView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pegawai.map((item) => (
-                    <tr key={item.id_pegawai} className="border-t">
-                      <td className="px-6 py-4 text-gray-800">{item.nama_pegawai}</td>
-                      <td className="px-6 py-4 text-gray-800">{item.email_pegawai}</td>
-                      <td className="px-6 py-4 text-gray-800">{item.nomor_telepon_pegawai}</td>
-                      <td className="px-6 py-4 text-gray-800">{item.id_role === 1 ? "Pemilik" : "Admin"}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          item.status_pegawai === "Aktif" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                        }`}>
-                          {item.status_pegawai}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => {
-                              setEditPegawaiId(item.id_pegawai);
-                              setPegawaiForm({
-                                nama_pegawai: item.nama_pegawai,
-                                email_pegawai: item.email_pegawai,
-                                password: "",
-                                nomor_telepon_pegawai: item.nomor_telepon_pegawai,
-                                id_role: String(item.id_role),
-                                status_pegawai: item.status_pegawai,
-                              });
-                              setOpenPegawai(true);
-                            }}
-                            className="p-3 rounded-xl bg-yellow-100 text-yellow-600"
-                          >
-                            <Pencil size={18} />
-                          </button>
-                        </div>
+                  {currentPegawai.length > 0 ? (
+                    currentPegawai.map((item) => (
+                      <tr key={item.id_pegawai} className="border-t hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 text-gray-800">{item.nama_pegawai}</td>
+                        <td className="px-6 py-4 text-gray-800">{item.email_pegawai}</td>
+                        <td className="px-6 py-4 text-gray-800">{item.nomor_telepon_pegawai}</td>
+                        <td className="px-6 py-4 text-gray-800">{item.id_role === 1 ? "Pemilik" : "Admin"}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            item.status_pegawai === "Aktif" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                          }`}>
+                            {item.status_pegawai}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            <button
+                              onClick={() => {
+                                setEditPegawaiId(item.id_pegawai);
+                                setPegawaiForm({
+                                  nama_pegawai: item.nama_pegawai,
+                                  email_pegawai: item.email_pegawai,
+                                  password: "",
+                                  nomor_telepon_pegawai: item.nomor_telepon_pegawai,
+                                  id_role: String(item.id_role),
+                                  status_pegawai: item.status_pegawai,
+                                });
+                                setOpenPegawai(true);
+                              }}
+                              className="p-3 rounded-xl bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition"
+                            >
+                              <Pencil size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center py-20 text-gray-400">
+                        Data pegawai belum tersedia
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
+
+              {/* PAGINATION PEGAWAI */}
+              {pegawai.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                  <div className="text-sm text-gray-500">
+                    Menampilkan {indexOfFirstPegawai + 1} hingga {Math.min(indexOfLastPegawai, pegawai.length)} dari {pegawai.length} data
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPagePegawai((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPagePegawai === 1}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPagesPegawai }, (_, i) => i + 1).map((number) => (
+                        <button
+                          key={number}
+                          onClick={() => setCurrentPagePegawai(number)}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                            currentPagePegawai === number
+                              ? "bg-[#1c3163] text-white border-[#1c3163]"
+                              : "bg-white text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPagePegawai((prev) => Math.min(prev + 1, totalPagesPegawai))}
+                      disabled={currentPagePegawai === totalPagesPegawai}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -445,15 +583,24 @@ export default function ManajemenPenggunaView() {
                   setOpenPenyewa(true);
                   setEditPenyewaId(null);
                   setFileKtp(null); // Reset input foto
+                  setPenyewaForm({
+                    nama_penyewa: "",
+                    email_penyewa: "",
+                    password: "",
+                    nomor_telepon_penyewa: "",
+                    ktp_penyewa: "",
+                    jenis_kelamin: "true",
+                    status_penyewa: "Aktif",
+                  });
                 }}
-                className="flex items-center gap-2 bg-[#1c3163] text-white px-5 py-3 rounded-xl"
+                className="flex items-center gap-2 bg-[#1c3163] text-white px-5 py-3 rounded-xl hover:bg-[#16274f] transition"
               >
                 <Plus size={18} />
                 Tambah Penyewa
               </button>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border">
+            <div className="overflow-x-auto rounded-2xl border flex flex-col bg-white">
               <table className="w-full">
                 <thead className="bg-gray-100">
                   <tr>
@@ -466,48 +613,96 @@ export default function ManajemenPenggunaView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {penyewa.map((item) => (
-                    <tr key={item.id_penyewa} className="border-t">
-                      <td className="px-6 py-4 text-gray-800">{item.nama_penyewa}</td>
-                      <td className="px-6 py-4 text-gray-800">{item.email_penyewa}</td>
-                      <td className="px-6 py-4 text-gray-800">{item.nomor_telepon_penyewa}</td>
-                      <td className="px-6 py-4 text-gray-800">{item.jenis_kelamin ? "Pria" : "Perempuan"}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          item.status_penyewa === "Aktif" ? "bg-green-100 text-green-700" :
-                          item.status_penyewa === "Non-Aktif" ? "bg-red-100 text-red-700" :
-                          "bg-yellow-100 text-yellow-700"
-                        }`}>
-                          {item.status_penyewa}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center">
-                          <button
-                            onClick={() => {
-                              setEditPenyewaId(item.id_penyewa);
-                              setPenyewaForm({
-                                nama_penyewa: item.nama_penyewa,
-                                email_penyewa: item.email_penyewa || "",
-                                password: "",
-                                nomor_telepon_penyewa: item.nomor_telepon_penyewa,
-                                ktp_penyewa: item.ktp_penyewa,
-                                jenis_kelamin: String(item.jenis_kelamin),
-                                status_penyewa: item.status_penyewa,
-                              });
-                              setFileKtp(null); // Reset input file saat mode edit dibuka
-                              setOpenPenyewa(true);
-                            }}
-                            className="p-3 rounded-xl bg-yellow-100 text-yellow-600"
-                          >
-                            <Pencil size={18} />
-                          </button>
-                        </div>
+                  {currentPenyewa.length > 0 ? (
+                    currentPenyewa.map((item) => (
+                      <tr key={item.id_penyewa} className="border-t hover:bg-gray-50 transition">
+                        <td className="px-6 py-4 text-gray-800">{item.nama_penyewa}</td>
+                        <td className="px-6 py-4 text-gray-800">{item.email_penyewa}</td>
+                        <td className="px-6 py-4 text-gray-800">{item.nomor_telepon_penyewa}</td>
+                        <td className="px-6 py-4 text-gray-800">{item.jenis_kelamin_penyewa ? "Pria" : "Wanita"}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            item.status_penyewa === "Aktif" ? "bg-green-100 text-green-700" :
+                            item.status_penyewa === "Non-Aktif" ? "bg-red-100 text-red-700" :
+                            "bg-yellow-100 text-yellow-700"
+                          }`}>
+                            {item.status_penyewa}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            <button
+                              onClick={() => {
+                                setEditPenyewaId(item.id_penyewa);
+                                setPenyewaForm({
+                                  nama_penyewa: item.nama_penyewa,
+                                  email_penyewa: item.email_penyewa || "",
+                                  password: "",
+                                  nomor_telepon_penyewa: item.nomor_telepon_penyewa,
+                                  ktp_penyewa: item.ktp_penyewa,
+                                  jenis_kelamin: String(item.jenis_kelamin_penyewa), 
+                                  status_penyewa: item.status_penyewa,
+                                });
+                                setFileKtp(null); // Reset input file saat mode edit dibuka
+                                setOpenPenyewa(true);
+                              }}
+                              className="p-3 rounded-xl bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition"
+                            >
+                              <Pencil size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center py-20 text-gray-400">
+                        Data penyewa belum tersedia
                       </td>
                     </tr>
-                  ))}
+                  )}
                 </tbody>
               </table>
+
+              {/* PAGINATION PENYEWA */}
+              {penyewa.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                  <div className="text-sm text-gray-500">
+                    Menampilkan {indexOfFirstPenyewa + 1} hingga {Math.min(indexOfLastPenyewa, penyewa.length)} dari {penyewa.length} data
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPagePenyewa((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPagePenyewa === 1}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPagesPenyewa }, (_, i) => i + 1).map((number) => (
+                        <button
+                          key={number}
+                          onClick={() => setCurrentPagePenyewa(number)}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                            currentPagePenyewa === number
+                              ? "bg-[#1c3163] text-white border-[#1c3163]"
+                              : "bg-white text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setCurrentPagePenyewa((prev) => Math.min(prev + 1, totalPagesPenyewa))}
+                      disabled={currentPagePenyewa === totalPagesPenyewa}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -518,10 +713,10 @@ export default function ManajemenPenggunaView() {
       {/* ============================================ */}
       {openPegawai && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative animate-in fade-in zoom-in duration-200">
             <button
               onClick={() => setOpenPegawai(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-red-500"
+              className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition"
             >
               <X size={24} />
             </button>
@@ -530,58 +725,82 @@ export default function ManajemenPenggunaView() {
             </h2>
 
             <div className="space-y-5">
-              <input
-                type="text"
-                name="nama_pegawai"
-                value={pegawaiForm.nama_pegawai}
-                onChange={handlePegawaiChange}
-                placeholder="Nama Pegawai"
-                className="w-full border rounded-xl px-4 py-3 outline-none"
-              />
-              <input
-                type="email"
-                name="email_pegawai"
-                value={pegawaiForm.email_pegawai}
-                onChange={handlePegawaiChange}
-                placeholder="Email"
-                className="w-full border rounded-xl px-4 py-3 outline-none"
-              />
-              {!editPegawaiId && (
+              <div>
+                <label className="block text-sm text-gray-600 mb-1 ml-1">Nama Pegawai</label>
                 <input
-                  type="password"
-                  name="password"
-                  value={pegawaiForm.password}
+                  type="text"
+                  name="nama_pegawai"
+                  value={pegawaiForm.nama_pegawai}
                   onChange={handlePegawaiChange}
-                  placeholder="Password"
-                  className="w-full border rounded-xl px-4 py-3 outline-none"
+                  placeholder="Masukkan nama pegawai"
+                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
                 />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-gray-600 mb-1 ml-1">Email Pegawai</label>
+                <input
+                  type="email"
+                  name="email_pegawai"
+                  value={pegawaiForm.email_pegawai}
+                  onChange={handlePegawaiChange}
+                  placeholder="Masukkan email"
+                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              {!editPegawaiId && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1 ml-1">Password</label>
+                  <input
+                    type="password"
+                    name="password"
+                    value={pegawaiForm.password}
+                    onChange={handlePegawaiChange}
+                    placeholder="Buat password untuk pegawai"
+                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               )}
-              <input
-                type="text"
-                name="nomor_telepon_pegawai"
-                value={pegawaiForm.nomor_telepon_pegawai}
-                onChange={handlePegawaiChange}
-                placeholder="Nomor Telepon"
-                className="w-full border rounded-xl px-4 py-3 outline-none"
-              />
-              <select
-                name="id_role"
-                value={pegawaiForm.id_role}
-                onChange={handlePegawaiChange}
-                className="w-full border rounded-xl px-4 py-3 outline-none"
-              >
-                <option value="1">Pemilik</option>
-                <option value="2">Admin</option>
-              </select>
-              <select
-                name="status_pegawai"
-                value={pegawaiForm.status_pegawai}
-                onChange={handlePegawaiChange}
-                className="w-full border rounded-xl px-4 py-3 outline-none"
-              >
-                <option value="Aktif">Aktif</option>
-                <option value="Non-Aktif">Non-Aktif</option>
-              </select>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-1 ml-1">Nomor Telepon</label>
+                <input
+                  type="text"
+                  name="nomor_telepon_pegawai"
+                  value={pegawaiForm.nomor_telepon_pegawai}
+                  onChange={handlePegawaiChange}
+                  placeholder="08xxxxxxxx"
+                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1 ml-1">Role Pegawai</label>
+                  <select
+                    name="id_role"
+                    value={pegawaiForm.id_role}
+                    onChange={handlePegawaiChange}
+                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
+                  >
+                    <option value="1">Pemilik</option>
+                    <option value="2">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1 ml-1">Status Pegawai</label>
+                  <select
+                    name="status_pegawai"
+                    value={pegawaiForm.status_pegawai}
+                    onChange={handlePegawaiChange}
+                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
+                  >
+                    <option value="Aktif">Aktif</option>
+                    <option value="Non-Aktif">Non-Aktif</option>
+                  </select>
+                </div>
+              </div>
 
               <div className="flex justify-end gap-4 pt-5">
                 <button
@@ -608,10 +827,10 @@ export default function ManajemenPenggunaView() {
       {/* ============================================ */}
       {openPenyewa && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
             <button
               onClick={() => setOpenPenyewa(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-red-500"
+              className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition"
             >
               <X size={24} />
             </button>
@@ -676,34 +895,42 @@ export default function ManajemenPenggunaView() {
                     name="jenis_kelamin"
                     value={penyewaForm.jenis_kelamin}
                     onChange={handlePenyewaChange}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
                   >
                     <option value="true">Pria</option>
-                    <option value="false">Perempuan</option>
+                    <option value="false">Wanita</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1 ml-1">Nomor NIK KTP</label>
-                <input
-                  type="text"
-                  name="ktp_penyewa"
-                  value={penyewaForm.ktp_penyewa}
-                  onChange={handlePenyewaChange}
-                  placeholder="Masukkan Nomor KTP"
-                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
-                />
+                <label className="block text-sm font-medium text-gray-600 mb-2 ml-1">Foto KTP Penyewa</label>
+                {editPenyewaId && penyewaForm.ktp_penyewa ? (
+                  <div className="mb-2 border rounded-xl overflow-hidden bg-gray-50 p-2">
+                    <img 
+                      src={penyewaForm.ktp_penyewa} 
+                      alt="KTP Penyewa" 
+                      className="max-h-52 mx-auto object-contain rounded-lg" 
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.insertAdjacentHTML('afterend', '<p class="text-sm text-red-500 text-center p-4">Gambar KTP gagal dimuat.</p>');
+                      }}
+                    />
+                  </div>
+                ) : editPenyewaId ? (
+                  <p className="text-sm text-gray-400 italic mb-2 ml-1">Belum ada foto KTP terunggah.</p>
+                ) : null}
               </div>
 
-              {/* INPUT FILE FOTO KTP */}
               <div>
-                <label className="block text-sm text-gray-600 mb-1 ml-1">Unggah Foto KTP (Opsional)</label>
+                <label className="block text-sm text-gray-600 mb-1 ml-1">
+                  {editPenyewaId ? "Unggah Foto KTP Baru (Opsional)" : "Unggah Foto KTP"}
+                </label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setFileKtp(e.target.files?.[0] || null)}
-                  className="w-full border rounded-xl px-4 py-3 outline-none bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                  className="w-full border rounded-xl px-4 py-3 outline-none bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer"
                 />
               </div>
 
@@ -713,7 +940,7 @@ export default function ManajemenPenggunaView() {
                   name="status_penyewa"
                   value={penyewaForm.status_penyewa}
                   onChange={handlePenyewaChange}
-                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
                 >
                   <option value="Aktif">Aktif</option>
                   <option value="Non-Aktif">Non-Aktif</option>

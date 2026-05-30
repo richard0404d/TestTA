@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Pencil, Trash2, Eye, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenFasilitas() {
   // ============================================
@@ -16,7 +16,10 @@ export default function ManajemenFasilitas() {
   const [openModal, setOpenModal] = useState(false);
   const [openMasterModal, setOpenMasterModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  
+  // ID untuk Edit
+  const [editId, setEditId] = useState<number | null>(null); // Untuk detail fasilitas
+  const [editMasterId, setEditMasterId] = useState<number | null>(null); // Untuk master fasilitas
 
   const [dataFasilitas, setDataFasilitas] = useState<any[]>([]);
   const [masterFasilitas, setMasterFasilitas] = useState<any[]>([]);
@@ -26,6 +29,13 @@ export default function ManajemenFasilitas() {
   // State untuk Konfirmasi Hapus
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+
+  // ============================================
+  // PAGINATION STATE
+  // ============================================
+  const [currentPageDetail, setCurrentPageDetail] = useState(1);
+  const [currentPageMaster, setCurrentPageMaster] = useState(1);
+  const itemsPerPage = 5;
 
   // ============================================
   // TOAST NOTIFICATION STATE
@@ -156,7 +166,7 @@ export default function ManajemenFasilitas() {
   }, []);
 
   // ============================================
-  // HANDLE CHANGE
+  // HANDLE CHANGE DETAIL
   // ============================================
   const handleChange = (e: any) => {
     setForm({
@@ -170,23 +180,14 @@ export default function ManajemenFasilitas() {
   // ============================================
   const handleSave = async () => {
     // --- VALIDASI INPUT ---
-    if (!form.id_kamar) {
-      return showToast("Silakan pilih Nomor Kamar terlebih dahulu", "error");
-    }
-    if (!form.id_fasilitas) {
-      return showToast("Silakan pilih Fasilitas terlebih dahulu", "error");
-    }
-    if (!form.kondisi_fasilitas) {
-      return showToast("Kondisi fasilitas wajib diisi", "error");
-    }
-    // -----------------------
+    if (!form.id_kamar) return showToast("Silakan pilih Nomor Kamar terlebih dahulu", "error");
+    if (!form.id_fasilitas) return showToast("Silakan pilih Fasilitas terlebih dahulu", "error");
+    if (!form.kondisi_fasilitas) return showToast("Kondisi fasilitas wajib diisi", "error");
 
     try {
       setLoading(true);
 
-      // ============================================
       // UPDATE
-      // ============================================
       if (editId) {
         const { error } = await supabase
           .from("detail_fasilitas_kamar")
@@ -200,10 +201,7 @@ export default function ManajemenFasilitas() {
         if (error) throw error;
         showToast("Detail fasilitas berhasil diupdate", "success");
       } else {
-        // ============================================
         // INSERT
-        // ============================================
-        // CEK APAKAH SUDAH ADA
         const { data: existingData, error: checkError } = await supabase
           .from("detail_fasilitas_kamar")
           .select("*")
@@ -212,14 +210,12 @@ export default function ManajemenFasilitas() {
 
         if (checkError) throw checkError;
 
-        // JIKA SUDAH ADA
         if (existingData && existingData.length > 0) {
           showToast("Fasilitas tersebut sudah digunakan di kamar ini", "error");
           setLoading(false);
           return;
         }
 
-        // INSERT DATA
         const { error } = await supabase.from("detail_fasilitas_kamar").insert([
           {
             id_kamar: Number(form.id_kamar),
@@ -232,13 +228,8 @@ export default function ManajemenFasilitas() {
         showToast("Detail fasilitas berhasil ditambahkan", "success");
       }
 
-      // REFRESH & RESET
       await getDetailFasilitas();
-      setForm({
-        id_kamar: "",
-        id_fasilitas: "",
-        kondisi_fasilitas: "Baik",
-      });
+      setForm({ id_kamar: "", id_fasilitas: "", kondisi_fasilitas: "Baik" });
       setEditId(null);
       setOpenModal(false);
     } catch (error: any) {
@@ -250,28 +241,48 @@ export default function ManajemenFasilitas() {
   };
 
   // ============================================
-  // SAVE MASTER
+  // BUKA MODAL EDIT MASTER
+  // ============================================
+  const handleEditMaster = (item: any) => {
+    setEditMasterId(item.id_fasilitas);
+    setNamaFasilitas(item.nama_fasilitas);
+    setOpenMasterModal(true);
+  };
+
+  // ============================================
+  // SAVE MASTER (INSERT ATAU UPDATE)
   // ============================================
   const handleSaveMaster = async () => {
     try {
-      // --- VALIDASI INPUT ---
       if (!namaFasilitas || namaFasilitas.trim() === "") {
         return showToast("Nama fasilitas wajib diisi!", "error");
       }
-      // -----------------------
 
-      const { error } = await supabase.from("fasilitas").insert([
-        {
-          nama_fasilitas: namaFasilitas,
-        },
-      ]);
+      if (editMasterId) {
+        // UPDATE
+        const { error } = await supabase
+          .from("fasilitas")
+          .update({ nama_fasilitas: namaFasilitas })
+          .eq("id_fasilitas", editMasterId);
 
-      if (error) throw error;
+        if (error) throw error;
+        showToast("Fasilitas berhasil diubah", "success");
+      } else {
+        // INSERT
+        const { error } = await supabase.from("fasilitas").insert([
+          { nama_fasilitas: namaFasilitas },
+        ]);
 
-      showToast("Fasilitas berhasil ditambahkan", "success");
+        if (error) throw error;
+        showToast("Fasilitas berhasil ditambahkan", "success");
+      }
+
       setNamaFasilitas("");
+      setEditMasterId(null);
       setOpenMasterModal(false);
+
       await getMasterFasilitas();
+      await getDetailFasilitas(); 
     } catch (error: any) {
       console.log(error);
       showToast(error.message, "error");
@@ -301,7 +312,6 @@ export default function ManajemenFasilitas() {
 
       if (error) throw error;
 
-      // UPDATE STATE AGAR LANGSUNG HILANG DI MODAL DETAIL
       if (detailData) {
         const updated = detailData.filter(
           (item: any) => item.id_detail_fasiliitas_kamar !== deleteTargetId
@@ -309,7 +319,6 @@ export default function ManajemenFasilitas() {
         setDetailData(updated);
       }
 
-      // REFRESH TABLE
       await getDetailFasilitas();
       showToast("Fasilitas berhasil dihapus", "success");
     } catch (error: any) {
@@ -322,6 +331,30 @@ export default function ManajemenFasilitas() {
     }
   };
 
+  // ============================================
+  // LOGIKA PAGINATION (DETAIL FASILITAS GROUPED BY KAMAR)
+  // ============================================
+  const groupedDataDetail = dataFasilitas.reduce((acc: any, item: any) => {
+    const kamarId = item.id_kamar;
+    if (!acc[kamarId]) acc[kamarId] = [];
+    acc[kamarId].push(item);
+    return acc;
+  }, {});
+
+  const detailEntries = Object.entries(groupedDataDetail);
+  const indexOfLastDetail = currentPageDetail * itemsPerPage;
+  const indexOfFirstDetail = indexOfLastDetail - itemsPerPage;
+  const currentDetailEntries = detailEntries.slice(indexOfFirstDetail, indexOfLastDetail);
+  const totalPagesDetail = Math.ceil(detailEntries.length / itemsPerPage);
+
+  // ============================================
+  // LOGIKA PAGINATION (MASTER FASILITAS)
+  // ============================================
+  const indexOfLastMaster = currentPageMaster * itemsPerPage;
+  const indexOfFirstMaster = indexOfLastMaster - itemsPerPage;
+  const currentMasterItems = masterFasilitas.slice(indexOfFirstMaster, indexOfLastMaster);
+  const totalPagesMaster = Math.ceil(masterFasilitas.length / itemsPerPage);
+
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
       
@@ -329,19 +362,12 @@ export default function ManajemenFasilitas() {
       {/* TOAST NOTIFICATION */}
       {/* ============================================ */}
       {toast.show && (
-        <div 
-          className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
-            toast.type === "success" 
-            ? "bg-green-100 text-green-800 border border-green-200" 
-            : "bg-red-100 text-red-800 border border-red-200"
-          }`}
-        >
+        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
+          toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"
+        }`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
           <p className="font-semibold">{toast.message}</p>
-          <button 
-            onClick={() => setToast({ ...toast, show: false })} 
-            className="ml-4 hover:opacity-70 transition"
-          >
+          <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
             <X size={18} />
           </button>
         </div>
@@ -375,57 +401,69 @@ export default function ManajemenFasilitas() {
         </div>
 
         <div className="pt-8">
-          <div className="overflow-x-auto rounded-2xl border bg-white">
+          <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
             <table className="w-full min-w-[700px]">
               <thead className="bg-gray-100">
                 <tr>
                   <th className="text-left px-6 py-4 font-semibold text-gray-700">Nomor Kamar</th>
-                  <th className="text-center px-6 py-4 font-semibold text-gray-700">Detail</th>
+                  {/* DIPERBAIKI: Padding px-10 dan width w-40 agar tidak mepet */}
+                  <th className="text-center px-10 py-4 font-semibold text-gray-700 w-40">Detail</th>
                 </tr>
               </thead>
               <tbody>
-                {(() => {
-                  // GROUP BERDASARKAN KAMAR
-                  const groupedData = dataFasilitas.reduce((acc: any, item: any) => {
-                    const kamarId = item.id_kamar;
-                    if (!acc[kamarId]) acc[kamarId] = [];
-                    acc[kamarId].push(item);
-                    return acc;
-                  }, {});
-
-                  // RENDER
-                  const entries = Object.entries(groupedData);
-                  
-                  if (entries.length === 0) {
-                    return (
-                      <tr>
-                        <td colSpan={2} className="text-center py-20 text-gray-400">
-                          Data detail fasilitas belum tersedia
-                        </td>
-                      </tr>
-                    );
-                  }
-
-                  return entries.map(([kamarId, fasilitas]: any, index) => (
+                {currentDetailEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="text-center py-20 text-gray-400">
+                      Data detail fasilitas belum tersedia
+                    </td>
+                  </tr>
+                ) : (
+                  currentDetailEntries.map(([kamarId, fasilitas]: any, index) => (
                     <tr key={`kamar-${index}`} className="border-t hover:bg-gray-50 transition">
                       <td className="px-6 py-4 font-medium text-gray-800">
                         Kamar {kamarId}
                       </td>
-                      <td className="px-6 py-4">
+                      {/* DIPERBAIKI: Padding px-10 */}
+                      <td className="px-10 py-4">
                         <div className="flex justify-center">
                           <button
                             onClick={() => setDetailData(fasilitas)}
                             className="p-3 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition"
+                            title="Lihat Detail"
                           >
                             <Eye size={18} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ));
-                })()}
+                  ))
+                )}
               </tbody>
             </table>
+
+            {/* PAGINATION DETAIL FASILITAS */}
+            {detailEntries.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                <div className="text-sm text-gray-500">
+                  Menampilkan {indexOfFirstDetail + 1} hingga {Math.min(indexOfLastDetail, detailEntries.length)} dari {detailEntries.length} kamar
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setCurrentPageDetail(p => Math.max(p - 1, 1))} disabled={currentPageDetail === 1} className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition">
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPagesDetail }, (_, i) => i + 1).map((number) => (
+                      <button key={number} onClick={() => setCurrentPageDetail(number)} className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${currentPageDetail === number ? "bg-[#1c3163] text-white border-[#1c3163]" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setCurrentPageDetail(p => Math.min(p + 1, totalPagesDetail))} disabled={currentPageDetail === totalPagesDetail} className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition">
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -441,6 +479,7 @@ export default function ManajemenFasilitas() {
             <button
               onClick={() => {
                 setOpenMasterModal(true);
+                setEditMasterId(null);
                 setNamaFasilitas("");
               }}
               className="flex items-center gap-2 bg-[#1c3163] hover:bg-[#16274f] text-white px-5 py-3 rounded-xl transition"
@@ -450,44 +489,79 @@ export default function ManajemenFasilitas() {
             </button>
           </div>
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
+          <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
             <table className="w-full min-w-[600px]">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-6 py-4 text-left font-semibold text-gray-700">ID</th>
+                  <th className="px-6 py-4 text-left font-semibold text-gray-700 w-16">ID</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700">Nama Fasilitas</th>
+                  {/* DIPERBAIKI: Padding px-10 dan width w-40 agar sama dengan tabel detail */}
+                  <th className="text-center px-10 py-4 font-semibold text-gray-700 w-40">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {masterFasilitas.length > 0 ? (
-                  masterFasilitas.map((item, index) => (
+                {currentMasterItems.length > 0 ? (
+                  currentMasterItems.map((item, index) => (
                     <tr key={`master-${index}`} className="border-t hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-gray-800">{item.id_fasilitas}</td>
                       <td className="px-6 py-4 text-gray-800 font-medium">{item.nama_fasilitas}</td>
+                      {/* DIPERBAIKI: Padding px-10 */}
+                      <td className="px-10 py-4">
+                        <div className="flex justify-center">
+                          <button
+                            onClick={() => handleEditMaster(item)}
+                            className="p-3 rounded-lg bg-yellow-100 text-yellow-600 hover:bg-yellow-200 transition"
+                            title="Edit Fasilitas"
+                          >
+                            <Pencil size={18} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={2} className="text-center py-20 text-gray-400">
+                    <td colSpan={3} className="text-center py-20 text-gray-400">
                       Data fasilitas belum tersedia
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+
+            {/* PAGINATION MASTER FASILITAS */}
+            {masterFasilitas.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                <div className="text-sm text-gray-500">
+                  Menampilkan {indexOfFirstMaster + 1} hingga {Math.min(indexOfLastMaster, masterFasilitas.length)} dari {masterFasilitas.length} fasilitas
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setCurrentPageMaster(p => Math.max(p - 1, 1))} disabled={currentPageMaster === 1} className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition">
+                    <ChevronLeft size={18} />
+                  </button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPagesMaster }, (_, i) => i + 1).map((number) => (
+                      <button key={number} onClick={() => setCurrentPageMaster(number)} className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${currentPageMaster === number ? "bg-[#1c3163] text-white border-[#1c3163]" : "bg-white text-gray-600 hover:bg-gray-50"}`}>
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setCurrentPageMaster(p => Math.min(p + 1, totalPagesMaster))} disabled={currentPageMaster === totalPagesMaster} className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition">
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* ============================================ */}
-        {/* MODAL TAMBAH DETAIL */}
+        {/* MODAL TAMBAH/EDIT DETAIL */}
         {/* ============================================ */}
         {openModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-              <button
-                onClick={() => setOpenModal(false)}
-                className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition"
-              >
+              <button onClick={() => setOpenModal(false)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition">
                 <X size={24} />
               </button>
 
@@ -498,12 +572,7 @@ export default function ManajemenFasilitas() {
               <div className="space-y-6">
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">Nomor Kamar</label>
-                  <select
-                    name="id_kamar"
-                    value={form.id_kamar}
-                    onChange={handleChange}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
-                  >
+                  <select name="id_kamar" value={form.id_kamar} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     <option value="">-- Pilih Kamar --</option>
                     {kamar.map((item, index) => (
                       <option key={`kamar-${index}`} value={item.id_kamar}>
@@ -515,12 +584,7 @@ export default function ManajemenFasilitas() {
 
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">Nama Fasilitas</label>
-                  <select
-                    name="id_fasilitas"
-                    value={form.id_fasilitas}
-                    onChange={handleChange}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
-                  >
+                  <select name="id_fasilitas" value={form.id_fasilitas} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     <option value="">-- Pilih Fasilitas --</option>
                     {masterFasilitas.map((item, index) => (
                       <option key={`fasilitas-option-${index}`} value={item.id_fasilitas}>
@@ -532,12 +596,7 @@ export default function ManajemenFasilitas() {
 
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">Kondisi Saat Ini</label>
-                  <select
-                    name="kondisi_fasilitas"
-                    value={form.kondisi_fasilitas}
-                    onChange={handleChange}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white"
-                  >
+                  <select name="kondisi_fasilitas" value={form.kondisi_fasilitas} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white">
                     <option value="Baik">Baik</option>
                     <option value="Rusak">Rusak</option>
                     <option value="Sedang Diperbaiki">Sedang Diperbaiki</option>
@@ -545,17 +604,8 @@ export default function ManajemenFasilitas() {
                 </div>
 
                 <div className="flex justify-end gap-4 pt-5">
-                  <button
-                    onClick={() => setOpenModal(false)}
-                    className="px-6 py-3 rounded-xl border hover:bg-gray-100 transition font-medium text-gray-700"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="px-6 py-3 rounded-xl bg-[#1c3163] hover:bg-[#16274f] text-white transition disabled:bg-gray-400 font-medium"
-                  >
+                  <button onClick={() => setOpenModal(false)} className="px-6 py-3 rounded-xl border hover:bg-gray-100 transition font-medium text-gray-700">Batal</button>
+                  <button onClick={handleSave} disabled={loading} className="px-6 py-3 rounded-xl bg-[#1c3163] hover:bg-[#16274f] text-white transition disabled:bg-gray-400 font-medium">
                     {loading ? "Menyimpan..." : "Simpan"}
                   </button>
                 </div>
@@ -565,44 +615,29 @@ export default function ManajemenFasilitas() {
         )}
 
         {/* ============================================ */}
-        {/* MODAL MASTER FASILITAS */}
+        {/* MODAL TAMBAH/EDIT MASTER FASILITAS */}
         {/* ============================================ */}
         {openMasterModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-xl rounded-3xl p-8 shadow-2xl relative animate-in fade-in zoom-in duration-200">
-              <button
-                onClick={() => setOpenMasterModal(false)}
-                className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition"
-              >
+              <button onClick={() => setOpenMasterModal(false)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition">
                 <X size={24} />
               </button>
 
-              <h2 className="text-3xl font-bold mb-8 text-gray-800">Tambah Data Master Fasilitas</h2>
+              <h2 className="text-3xl font-bold mb-8 text-gray-800">
+                {editMasterId ? "Edit Data Master Fasilitas" : "Tambah Data Master Fasilitas"}
+              </h2>
 
               <div className="space-y-6">
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">Nama Fasilitas</label>
-                  <input
-                    type="text"
-                    placeholder="Contoh: AC, Lemari, Kasur..."
-                    value={namaFasilitas}
-                    onChange={(e) => setNamaFasilitas(e.target.value)}
-                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
-                  />
+                  <input type="text" placeholder="Contoh: AC, Lemari, Kasur..." value={namaFasilitas} onChange={(e) => setNamaFasilitas(e.target.value)} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100" />
                 </div>
 
                 <div className="flex justify-end gap-4 pt-5">
-                  <button
-                    onClick={() => setOpenMasterModal(false)}
-                    className="px-6 py-3 rounded-xl border hover:bg-gray-100 transition font-medium text-gray-700"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={handleSaveMaster}
-                    className="px-6 py-3 rounded-xl bg-[#1c3163] hover:bg-[#16274f] text-white transition font-medium"
-                  >
-                    Simpan
+                  <button onClick={() => setOpenMasterModal(false)} className="px-6 py-3 rounded-xl border hover:bg-gray-100 transition font-medium text-gray-700">Batal</button>
+                  <button onClick={handleSaveMaster} className="px-6 py-3 rounded-xl bg-[#1c3163] hover:bg-[#16274f] text-white transition font-medium">
+                    {editMasterId ? "Update" : "Simpan"}
                   </button>
                 </div>
               </div>
@@ -616,10 +651,7 @@ export default function ManajemenFasilitas() {
         {detailData && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]">
             <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
-              <button
-                onClick={() => setDetailData(null)}
-                className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition"
-              >
+              <button onClick={() => setDetailData(null)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition">
                 <X size={24} />
               </button>
 
@@ -638,7 +670,6 @@ export default function ManajemenFasilitas() {
                 {detailData.map((item: any, index: number) => (
                   <div key={`detail-${index}`} className="border rounded-2xl p-6 bg-white shadow-sm relative">
                     
-                    {/* NAMA */}
                     <div className="mb-4">
                       <p className="text-gray-500 mb-1 text-sm font-medium">Nama Fasilitas</p>
                       <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800 font-medium">
@@ -646,7 +677,6 @@ export default function ManajemenFasilitas() {
                       </div>
                     </div>
 
-                    {/* STATUS */}
                     <div>
                       <p className="text-gray-500 mb-1 text-sm font-medium">Ubah Kondisi</p>
                       <select
@@ -661,7 +691,6 @@ export default function ManajemenFasilitas() {
 
                             if (error) throw error;
 
-                            // UPDATE STATE
                             const updated = detailData.map((d: any) => {
                               if (d.id_detail_fasiliitas_kamar === item.id_detail_fasiliitas_kamar) {
                                 return { ...d, kondisi_fasilitas: value };

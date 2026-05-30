@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Eye, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Eye, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenPembayaran() {
   // ============================================
@@ -20,6 +20,12 @@ export default function ManajemenPembayaran() {
   const [pembayarans, setPembayarans] = useState<any[]>([]);
   const [tagihanBelumBayar, setTagihanBelumBayar] = useState<any[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<any>(null);
+
+  // ============================================
+  // PAGINATION STATE
+  // ============================================
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Toast Notification State
   const [toast, setToast] = useState({
@@ -265,6 +271,16 @@ export default function ManajemenPembayaran() {
     setOpenDetailModal(true);
   };
 
+  // ============================================
+  // LOGIKA PAGINATION
+  // ============================================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = pembayarans.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(pembayarans.length / itemsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
 
@@ -322,7 +338,7 @@ export default function ManajemenPembayaran() {
           {/* TABLE */}
           {/* ============================================ */}
           <div className="pt-8">
-            <div className="overflow-x-auto rounded-2xl border bg-white">
+            <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
               <table className="w-full min-w-[800px]">
                 {/* HEAD */}
                 <thead className="bg-gray-100">
@@ -339,7 +355,8 @@ export default function ManajemenPembayaran() {
                 {/* BODY */}
                 <tbody>
                   {pembayarans.length > 0 ? (
-                    pembayarans.map((pembayaran, index) => (
+                    // MENGGUNAKAN currentItems BUKAN pembayarans
+                    currentItems.map((pembayaran, index) => (
                       <tr key={index} className="border-t hover:bg-gray-50 transition">
                         {/* NAMA PENYEWA */}
                         <td className="px-6 py-4 text-black">
@@ -399,6 +416,54 @@ export default function ManajemenPembayaran() {
                   )}
                 </tbody>
               </table>
+
+              {/* ============================================ */}
+              {/* PAGINATION UI */}
+              {/* ============================================ */}
+              {pembayarans.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                  
+                  <div className="text-sm text-gray-500">
+                    Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, pembayarans.length)} dari {pembayarans.length} data
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                        <button
+                          key={number}
+                          onClick={() => paginate(number)}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                            currentPage === number
+                              ? "bg-[#1c3163] text-white border-[#1c3163]"
+                              : "bg-white text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+
+                </div>
+              )}
+
             </div>
           </div>
         </div>
@@ -505,6 +570,7 @@ export default function ManajemenPembayaran() {
                     setSelectedDetail(null);
                     setOpenDetailModal(false);
                   }}
+                  className="text-gray-400 hover:text-red-500 transition"
                 >
                   <X />
                 </button>
@@ -513,66 +579,66 @@ export default function ManajemenPembayaran() {
               <div className="space-y-4">
                 {/* NAMA */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Nama Penyewa
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={selectedDetail.tagihan?.sewa?.penyewa?.nama_penyewa || "-"}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
 
                 {/* KAMAR */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Nomor Kamar
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={`Kamar ${selectedDetail.tagihan?.sewa?.kamar?.id_kamar || "-"}`}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
 
                 {/* PENGHUNI */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Jumlah Penghuni
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={`${selectedDetail.tagihan?.sewa?.reservasi?.jumlah_penghuni || 0} Orang`}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
 
                 {/* JUMLAH PEMBAYARAN */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Jumlah Pembayaran
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={`Rp ${(selectedDetail.tagihan?.total_tagihan || 0).toLocaleString("id-ID")}`}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
 
                 {/* STATUS */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Status Pembayaran
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={selectedDetail.status_pembayaran || "-"}
-                    className={`w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none font-medium ${
+                    className={`w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none font-medium ${
                       selectedDetail.status_pembayaran === "Berhasil" ? "text-green-600" : "text-red-600"
                     }`}
                   />
@@ -580,40 +646,40 @@ export default function ManajemenPembayaran() {
 
                 {/* TANGGAL */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Tanggal Pembayaran
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={formatTanggal(selectedDetail.tanggal_pembayaran)}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
 
                 {/* TELEPON */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Nomor Telepon
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={selectedDetail.tagihan?.sewa?.penyewa?.nomor_telepon_penyewa || "-"}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
 
                 {/* EMAIL */}
                 <div>
-                  <label className="font-semibold">
+                  <label className="font-semibold text-gray-700">
                     Email
                   </label>
                   <input
                     type="text"
                     readOnly
                     value={selectedDetail.tagihan?.sewa?.penyewa?.email_penyewa || "-"}
-                    className="w-full border rounded-lg p-3 mt-2 bg-gray-100 outline-none text-gray-800"
+                    className="w-full border rounded-lg p-3 mt-2 bg-gray-50 outline-none text-gray-800"
                   />
                 </div>
               </div>

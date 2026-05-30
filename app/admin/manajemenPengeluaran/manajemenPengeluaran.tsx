@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Pencil, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Pencil, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenPengeluaran() {
   // ============================================
@@ -18,6 +18,12 @@ export default function ManajemenPengeluaran() {
   const [pengeluaran, setPengeluaran] = useState<any[]>([]);
   const [editId, setEditId] = useState<number | null>(null);
   const [pegawaiLogin, setPegawaiLogin] = useState<any>(null);
+
+  // ============================================
+  // PAGINATION STATE
+  // ============================================
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Toast Notification State
   const [toast, setToast] = useState({
@@ -213,6 +219,16 @@ export default function ManajemenPengeluaran() {
     }
   };
 
+  // ============================================
+  // LOGIKA PAGINATION
+  // ============================================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = pengeluaran.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(pengeluaran.length / itemsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
       
@@ -274,7 +290,7 @@ export default function ManajemenPengeluaran() {
 
           {/* TABLE */}
           <div className="pt-8">
-            <div className="overflow-x-auto rounded-2xl border bg-white">
+            <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
               <table className="w-full min-w-[900px]">
                 {/* HEAD */}
                 <thead className="bg-gray-100">
@@ -290,7 +306,8 @@ export default function ManajemenPengeluaran() {
                 {/* BODY */}
                 <tbody>
                   {pengeluaran.length > 0 ? (
-                    pengeluaran.map((item) => (
+                    // MENGGUNAKAN currentItems BUKAN pengeluaran
+                    currentItems.map((item) => (
                       <tr key={item.id_pengeluaran} className="border-t hover:bg-gray-50 transition">
                         {/* NAMA */}
                         <td className="px-6 py-4 text-gray-800">
@@ -346,6 +363,53 @@ export default function ManajemenPengeluaran() {
                   )}
                 </tbody>
               </table>
+
+              {/* ============================================ */}
+              {/* PAGINATION UI */}
+              {/* ============================================ */}
+              {pengeluaran.length > 0 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                  
+                  <div className="text-sm text-gray-500">
+                    Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, pengeluaran.length)} dari {pengeluaran.length} data
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+
+                    <div className="flex gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                        <button
+                          key={number}
+                          onClick={() => paginate(number)}
+                          className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                            currentPage === number
+                              ? "bg-[#1c3163] text-white border-[#1c3163]"
+                              : "bg-white text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+
+                </div>
+              )}
             </div>
           </div>
         </div>

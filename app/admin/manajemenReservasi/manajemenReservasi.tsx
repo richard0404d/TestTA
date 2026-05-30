@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 
 import {
   Eye,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 export default function ManajemenReservasi() {
@@ -40,6 +42,10 @@ export default function ManajemenReservasi() {
   ] = useState<any | null>(
     null
   );
+
+  // STATE PAGINATION
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // ============================================
   // GET RESERVASI
@@ -232,11 +238,24 @@ export default function ManajemenReservasi() {
 
       case "Batal":
         return "bg-red-100 text-red-700";
+      
+      case "Menunggu Pembayaran":
+        return "bg-blue-100 text-blue-700";
 
       default:
         return "bg-yellow-100 text-yellow-700";
     }
   };
+
+  // ============================================
+  // LOGIKA PAGINATION
+  // ============================================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = reservasi.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(reservasi.length / itemsPerPage);
+
+  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
 
@@ -275,7 +294,7 @@ export default function ManajemenReservasi() {
 
         <div className="pt-8">
 
-          <div className="overflow-x-auto rounded-2xl border bg-white">
+          <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
 
             <table className="w-full min-w-[1000px]">
 
@@ -323,7 +342,8 @@ export default function ManajemenReservasi() {
                 reservasi.length >
                   0 ? (
 
-                  reservasi.map(
+                  // MENGGUNAKAN currentItems BUKAN reservasi
+                  currentItems.map(
                     (
                       item
                     ) => (
@@ -419,7 +439,7 @@ export default function ManajemenReservasi() {
                                   item
                                 )
                               }
-                              className="p-3 rounded-xl bg-blue-100 text-blue-600"
+                              className="p-3 rounded-xl bg-blue-100 text-blue-600 hover:bg-blue-200 transition"
                             >
 
                               <Eye size={18} />
@@ -456,6 +476,53 @@ export default function ManajemenReservasi() {
 
             </table>
 
+            {/* ============================================ */}
+            {/* PAGINATION UI */}
+            {/* ============================================ */}
+            {!loading && reservasi.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
+                
+                <div className="text-sm text-gray-500">
+                  Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, reservasi.length)} dari {reservasi.length} data
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                      <button
+                        key={number}
+                        onClick={() => paginate(number)}
+                        className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                          currentPage === number
+                            ? "bg-[#1c3163] text-white border-[#1c3163]"
+                            : "bg-white text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {number}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+
+              </div>
+            )}
+
           </div>
 
         </div>
@@ -470,7 +537,7 @@ export default function ManajemenReservasi() {
 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
 
-          <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto animate-in zoom-in duration-200">
 
             {/* CLOSE */}
             <button
@@ -479,7 +546,7 @@ export default function ManajemenReservasi() {
                   null
                 )
               }
-              className="absolute top-5 right-5 text-gray-500"
+              className="absolute top-5 right-5 text-gray-400 hover:text-red-500 text-2xl"
             >
 
               ✕
@@ -498,11 +565,11 @@ export default function ManajemenReservasi() {
               {/* NAMA */}
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Nama Penyewa
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   {
                     detailData
@@ -517,11 +584,11 @@ export default function ManajemenReservasi() {
               {/* TELEPON */}
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Nomor Telepon
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   {
                     detailData
@@ -536,11 +603,11 @@ export default function ManajemenReservasi() {
               {/* KAMAR */}
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Nomor Kamar
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   Kamar{" "}
 
@@ -557,11 +624,11 @@ export default function ManajemenReservasi() {
               {/* PENGHUNI */}
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Jumlah Penghuni
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   {
                     detailData.jumlah_penghuni
@@ -578,11 +645,11 @@ export default function ManajemenReservasi() {
                 <>
                   <div>
 
-                    <p className="text-gray-500 mb-1">
+                    <p className="text-gray-500 mb-1 font-medium">
                       Nama Penghuni Ke-2
                     </p>
 
-                    <div className="border rounded-xl px-4 py-3">
+                    <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                       {
                         detailData.nama_penghuni2
@@ -594,11 +661,11 @@ export default function ManajemenReservasi() {
 
                   <div>
 
-                    <p className="text-gray-500 mb-1">
+                    <p className="text-gray-500 mb-1 font-medium">
                       Nomor Telepon Penghuni Ke-2
                     </p>
 
-                    <div className="border rounded-xl px-4 py-3">
+                    <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                       {
                         detailData.nomor_telepon2
@@ -613,11 +680,11 @@ export default function ManajemenReservasi() {
               {/* TANGGAL */}
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Tanggal Reservasi
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   {formatDate(
                     detailData.tanggal_reservasi
@@ -629,11 +696,11 @@ export default function ManajemenReservasi() {
 
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Tanggal Masuk
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   {formatDate(
                     detailData.tanggal_masuk
@@ -646,11 +713,11 @@ export default function ManajemenReservasi() {
               {/* STATUS */}
               <div>
 
-                <p className="text-gray-500 mb-1">
+                <p className="text-gray-500 mb-1 font-medium">
                   Status Reservasi
                 </p>
 
-                <div className="border rounded-xl px-4 py-3">
+                <div className="border rounded-xl px-4 py-3 bg-gray-50 text-gray-800">
 
                   {
                     detailData.status_reservasi

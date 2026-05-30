@@ -99,37 +99,31 @@ export async function POST(
         .single();
 
       
-      let tanggalBerakhir;
+      let tanggalBerakhir =
+  sewa.tanggal_berakhir_sewa;
 
-      // ============================================
-      // PEMBAYARAN PERTAMA
-      // ============================================
+// ============================================
+// JIKA SUDAH AKTIF
+// BERARTI PERPANJANGAN
+// ============================================
 
-      if (
-        !sewa.tanggal_berakhir_sewa
-      ) {
+if (
+  sewa.status_sewa ===
+  "Aktif"
+) {
 
-        tanggalBerakhir =
-          new Date(
-            sewa.tanggal_sewa
-          );
+  const tanggal =
+    new Date(
+      sewa.tanggal_berakhir_sewa
+    );
 
-      } else {
+  tanggal.setMonth(
+    tanggal.getMonth() + 1
+  );
 
-        // ============================================
-        // PERPANJANGAN
-        // ============================================
-
-        tanggalBerakhir =
-          new Date(
-            sewa
-              .tanggal_berakhir_sewa
-          );
-      }
-
-      tanggalBerakhir.setMonth(
-        tanggalBerakhir.getMonth() + 1
-      );
+  tanggalBerakhir =
+    tanggal;
+}
 
       // ============================================
 // CEK PEMBAYARAN SUDAH ADA?
@@ -185,21 +179,20 @@ if (!pembayaranExist) {
       // ============================================
 
       await supabase
-        .from("sewa")
-        .update({
+  .from("sewa")
+  .update({
 
-          status_sewa:
-            "Aktif",
+    status_sewa:
+      "Aktif",
 
-          tanggal_berakhir_sewa:
-            tanggalBerakhir,
+    tanggal_berakhir_sewa:
+      tanggalBerakhir,
 
-        })
-        .eq(
-          "id_sewa",
-          tagihan.id_sewa
-        );
-
+  })
+  .eq(
+    "id_sewa",
+    tagihan.id_sewa
+  );
       // UPDATE RESERVASI
       if (
         sewa.status_sewa ===
