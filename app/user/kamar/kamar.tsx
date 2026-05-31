@@ -189,7 +189,7 @@ export default function KamarPenyewaPage() {
       
       // Redirect setelah sukses
       setTimeout(() => {
-        router.push("/");
+        router.push("/user/kamar");
       }, 2000);
 
     } catch (err: any) {

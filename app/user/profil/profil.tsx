@@ -3,9 +3,12 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CheckCircle, AlertCircle, X } from "lucide-react";
+import { useRouter } from "next/navigation"; // TAMBAHKAN IMPORT INI
 
 export default function ProfilPage() {
   const supabase = createClient();
+  const router = useRouter(); // INISIALISASI ROUTER
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -49,7 +52,6 @@ export default function ProfilPage() {
               email: user.email || "",
               jenis_kelamin_penyewa: genderText,
               status_penyewa: data.status_penyewa || "-",
-              // PERBAIKAN: Gunakan nama kolom yang tepat yaitu ktp_penyewa
               ktp_url: data.ktp_penyewa || "", 
             });
           }
@@ -91,22 +93,34 @@ export default function ProfilPage() {
       
       if (error) {
         showToast("Gagal memperbarui profil: " + error.message, "error");
+        setSaving(false);
       } else {
         showToast("Profil berhasil diperbarui!", "success");
+        setSaving(false);
+        
+        // KEMBALI KE BERANDA SETELAH 1.5 DETIK
+        setTimeout(() => {
+          // Ganti '/' dengan '/user/dashboard' jika halaman beranda penyewa Anda ada di sana
+          router.push("/user/dashboard"); 
+        }, 1500);
       }
+    } else {
+       setSaving(false);
     }
-    setSaving(false);
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Memuat profil...</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-6 md:pt-10">
+    <div className="max-w-2xl mx-auto p-6 md:pt-10 mb-20">
       {/* TOAST */}
       {toast.show && (
-        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
           <p className="font-semibold">{toast.message}</p>
+          <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
+             <X size={18} />
+          </button>
         </div>
       )}
 
@@ -180,7 +194,7 @@ export default function ProfilPage() {
         <button 
           onClick={handleUpdate}
           disabled={saving}
-          className="w-full bg-[#2C5EBF] text-white py-4 rounded-xl font-bold hover:bg-blue-800 transition shadow-lg shadow-blue-200"
+          className="w-full bg-[#1c3163] text-white py-4 rounded-xl font-bold hover:bg-[#15254b] transition shadow-lg disabled:bg-gray-400"
         >
           {saving ? "Menyimpan..." : "Simpan Perubahan"}
         </button>

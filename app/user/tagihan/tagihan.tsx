@@ -111,34 +111,34 @@ console.log(
         );
 
         const {
-  data: tagihanData,
-  error: tagihanError,
-} = await supabase
-  .from("tagihan")
-  .select(`
-    *,
-    sewa!inner (
-      *,
-      tanggal_berakhir_sewa,
-      kamar (
-        id_kamar
-      )
-    )
-  `)
-  .eq(
-    "status_tagihan",
-    "Belum Dibayar"
-  )
-  .eq(
-    "sewa.id_penyewa",
-    user.id
-  )
-  .order(
-    "created_at",
-    {
-      ascending: false,
-    }
-  );
+          data: tagihanData,
+          error: tagihanError,
+        } = await supabase
+          .from("tagihan")
+          .select(`
+            *,
+            sewa!inner (
+              *,
+              tanggal_berakhir_sewa,
+              kamar (
+                id_kamar
+              )
+            )
+          `)
+          .eq(
+            "status_tagihan",
+            "Belum Dibayar"
+          )
+          .eq(
+            "sewa.id_penyewa",
+            user.id
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            }
+          );
 
         setTagihan(
           tagihanData || []

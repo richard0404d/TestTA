@@ -65,7 +65,7 @@ export default function AdminSidebar() {
     <>
       {/* TOPBAR */}
       <div className="fixed top-0 left-0 w-full h-16 bg-[#1c3163] text-white flex items-center justify-between px-5 z-50 shadow-sm">
-        <h1 className="text-2xl font-bold">Kos 75</h1>
+        <Link href="/admin/dashboardAdmin"><h1 className="text-2xl font-bold">Kos 75</h1></Link>
 
         {/* BAGIAN KANAN: HALO DAN DROPDOWN */}
         <div className="flex items-center gap-4">
@@ -107,7 +107,16 @@ export default function AdminSidebar() {
 
       {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex fixed top-16 left-0 w-[260px] h-[calc(100vh-64px)] bg-white border-r flex-col p-5 overflow-y-auto">
-        <div className="w-full h-28 border-2 border-dashed rounded-2xl flex items-center justify-center text-gray-400 mb-8">Logo</div>
+        
+        {/* LOGO AREA - NOW WITH LINK AND IMAGE */}
+        <Link href="/admin/dashboardAdmin" className="block w-full h-28 mb-8 overflow-hidden rounded-2xl hover:opacity-80 transition flex items-center justify-center bg-[#1c3163]">
+          <img 
+            src="/images/LogoKos.png" 
+            alt="Kos 75 Logo" 
+            className="w-full h-full object-contain p-2"
+          />
+        </Link>
+        
         <div className="flex flex-col gap-2">
           {menus.map((menu) => (
             <Link key={menu.href} href={menu.href} className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${pathname === menu.href ? "bg-[#1c3163] text-white shadow-md" : "text-gray-700 hover:bg-blue-50"}`}>

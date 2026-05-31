@@ -7,15 +7,20 @@ export default function LoginPage() {
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
-          <a href="#" className="flex items-center gap-2 font-medium">
-            <div className="text-primary-foreground flex size-6 items-center justify-center rounded-md">
+          <a href="/authentication/sign-in" className="flex items-center gap-3 font-semibold text-lg">
+            
+            {/* CONTAINER LOGO DIPERBARUI DI SINI */}
+            <div className="bg-black flex size-9 items-center justify-center rounded-xl shadow-sm">
               <Image
-                src="/company-logo.png"
-                width={24}
-                height={24}
-                alt="Image"
+                src="/images/LogoKos.png"
+                width={22}
+                height={22}
+                alt="Logo Kos 75"
+                className="object-contain"
               />
             </div>
+            {/* ================================= */}
+            
             Kos 75
           </a>
         </div>

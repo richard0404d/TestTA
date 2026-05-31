@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,9 @@ export default function Reservasi() {
   const [penyewa, setPenyewa] = useState<any>(null);
   const [hargaTotal, setHargaTotal] = useState(0);
 
+  // STATE BARU UNTUK FASILITAS
+  const [fasilitas, setFasilitas] = useState<any[]>([]);
+
   // State untuk Toast Notification
   const [toast, setToast] = useState({
     show: false,
@@ -37,6 +40,49 @@ export default function Reservasi() {
     namaPenghuni2: "",
     teleponPenghuni2: "",
   });
+
+  // ============================================
+  // CAROUSEL LOGIC UNIFIED (MOBILE & DESKTOP)
+  // ============================================
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  // Masukkan gambar-gambar yang ingin ditampilkan di sini
+  const bannerImages = [
+    "/images/GambarKamar.png",
+    "/images/GambarKamar2.png", 
+    "/images/GambarKamar.png", 
+  ];
+
+  // Auto-slide effect (setiap 3 detik pindah)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (carouselRef.current) {
+        const maxIndex = bannerImages.length - 1;
+        const nextIndex = currentSlide === maxIndex ? 0 : currentSlide + 1;
+        
+        carouselRef.current.scrollTo({
+          left: nextIndex * carouselRef.current.clientWidth,
+          behavior: "smooth",
+        });
+        setCurrentSlide(nextIndex);
+      }
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [currentSlide, bannerImages.length]);
+
+  // Sinkronisasi manual swipe dengan state indikator titik
+  const handleScroll = () => {
+    if (carouselRef.current) {
+      const scrollPosition = carouselRef.current.scrollLeft;
+      const width = carouselRef.current.clientWidth;
+      const newIndex = Math.round(scrollPosition / width);
+      if (newIndex !== currentSlide) {
+        setCurrentSlide(newIndex);
+      }
+    }
+  };
 
   // Helper untuk memunculkan notifikasi
   const showToast = (message: string, type: "success" | "error") => {
@@ -101,12 +147,26 @@ export default function Reservasi() {
   };
 
   // ============================================
+  // GET SEMUA FASILITAS (Karena semua kamar fasilitasnya sama)
+  // ============================================
+  const getFasilitas = async () => {
+    const { data, error } = await supabase
+      .from("fasilitas")
+      .select("*");
+
+    if (!error && data) {
+      setFasilitas(data);
+    }
+  };
+
+  // ============================================
   // LOAD
   // ============================================
   useEffect(() => {
     checkExpiredReservasi();
     getKamar();
     getPenyewa();
+    getFasilitas(); // Panggil saat awal komponen di-load
   }, []);
 
   // ============================================
@@ -193,40 +253,40 @@ export default function Reservasi() {
   };
 
   function tambahSatuBulan(
-  tanggalAwal: string
-) {
+    tanggalAwal: string
+  ) {
 
-  const start =
-    new Date(tanggalAwal);
+    const start =
+      new Date(tanggalAwal);
 
-  const tahun =
-    start.getFullYear();
+    const tahun =
+      start.getFullYear();
 
-  const bulan =
-    start.getMonth();
+    const bulan =
+      start.getMonth();
 
-  const tanggal =
-    start.getDate();
+    const tanggal =
+      start.getDate();
 
-  const lastDayTarget =
-    new Date(
+    const lastDayTarget =
+      new Date(
+        tahun,
+        bulan + 2,
+        0
+      ).getDate();
+
+    const tanggalFix =
+      Math.min(
+        tanggal,
+        lastDayTarget
+      );
+
+    return new Date(
       tahun,
-      bulan + 2,
-      0
-    ).getDate();
-
-  const tanggalFix =
-    Math.min(
-      tanggal,
-      lastDayTarget
+      bulan + 1,
+      tanggalFix
     );
-
-  return new Date(
-    tahun,
-    bulan + 1,
-    tanggalFix
-  );
-}
+  }
 
   // ============================================
   // HANDLE SUBMIT
@@ -484,13 +544,35 @@ export default function Reservasi() {
         </div>
       )}
 
-      {/* BANNER */}
-      <div className="w-full h-[220px] border rounded-2xl overflow-hidden mb-6">
-        <img
-          src="/hero-3.jpg"
-          className="w-full h-full object-cover"
-          alt="Banner Reservasi"
-        />
+      {/* ============================================ */}
+      {/* UNIFIED BANNER (CAROUSEL AUTO-SLIDE) */}
+      {/* ============================================ */}
+      <div className="relative mb-8 rounded-2xl overflow-hidden h-[220px] md:h-[400px]">
+        <div 
+          ref={carouselRef}
+          onScroll={handleScroll}
+          className="flex w-full h-full overflow-x-auto snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+        >
+          {bannerImages.map((src, idx) => (
+            <div key={idx} className="flex-shrink-0 w-full h-full snap-center relative ">
+              <img 
+                src={src} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                alt={`Kamar ${idx + 1}`} 
+              />
+            </div>
+          ))}
+        </div>
+        
+        {/* Indikator Dots */}
+        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 pointer-events-none">
+          {bannerImages.map((_, idx) => (
+            <div 
+              key={idx} 
+              className={`h-2 rounded-full transition-all duration-300 shadow-sm ${currentSlide === idx ? "w-8 bg-white" : "w-2 bg-white/60"}`}
+            />
+          ))}
+        </div>
       </div>
 
       {/* FORM */}
@@ -627,6 +709,26 @@ export default function Reservasi() {
           {loading ? "Memproses Reservasi..." : "Lanjutkan Reservasi"}
         </Button>
       </form>
+
+      {/* ============================================ */}
+      {/* SECTION FASILITAS KAMAR DARI DATABASE */}
+      {/* ============================================ */}
+      <div className="border rounded-2xl p-6 bg-white shadow-sm mt-6">
+        <h3 className="font-bold text-gray-800 mb-4 border-b pb-3">Fasilitas Kamar</h3>
+        {fasilitas.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {fasilitas.map((item) => (
+              <div key={item.id_fasilitas} className="flex items-center gap-3 text-gray-700">
+                <CheckCircle size={20} className="text-[#1c3163]" />
+                <span className="text-sm font-medium capitalize">{item.nama_fasilitas}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 text-center py-4">Memuat data fasilitas...</p>
+        )}
+      </div>
+
     </div>
   );
 }

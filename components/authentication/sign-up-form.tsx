@@ -87,23 +87,43 @@ export function SignUpForm({
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Validasi Input
-    if (!form.nama || !form.telepon || !form.email || !form.password) {
-      return showToast("Harap lengkapi semua data wajib!", "error");
+    // ============================================
+    // VALIDASI INPUT LENGKAP
+    // ============================================
+    if (!form.nama.trim()) {
+      return showToast("Nama Lengkap tidak boleh kosong!", "error");
     }
 
-    // Validasi akhir untuk memastikan nomor telepon benar-benar angka dan panjangnya masuk akal
+    if (!form.email.trim()) {
+      return showToast("Email tidak boleh kosong!", "error");
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      return showToast("Format email tidak valid!", "error");
+    }
+
+    if (!form.password) {
+      return showToast("Password tidak boleh kosong!", "error");
+    }
+    if (form.password.length < 6) {
+      return showToast("Password harus minimal 6 karakter!", "error");
+    }
+
+    if (!form.telepon) {
+      return showToast("Nomor telepon tidak boleh kosong!", "error");
+    }
     if (!/^[0-9]+$/.test(form.telepon)) {
       return showToast("Nomor telepon hanya boleh berisi angka!", "error");
     }
     if (form.telepon.length < 10) {
-      return showToast("Nomor telepon terlalu pendek!", "error");
+      return showToast("Nomor telepon terlalu pendek (min. 10 angka)!", "error");
     }
 
     if (!fileKtp) {
       return showToast("Foto KTP wajib diunggah!", "error");
     }
 
+    // Lolos Validasi
     setIsLoading(true);
 
     try {
@@ -180,13 +200,13 @@ export function SignUpForm({
         <div className={`fixed top-10 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
           <p className="font-semibold text-sm">{toast.message}</p>
-          <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
+          <button type="button" onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
             <X size={18} />
           </button>
         </div>
       )}
 
-      <form className={cn("flex flex-col gap-6", className)} {...props} onSubmit={handleSignUp}>
+      <form className={cn("flex flex-col gap-6", className)} {...props} onSubmit={handleSignUp} noValidate>
         <FieldGroup>
           {/* TITLE */}
           <div className="flex flex-col items-center gap-1 text-center mb-4">
@@ -204,7 +224,6 @@ export function SignUpForm({
               name="nama"
               type="text"
               placeholder="Masukkan nama lengkap Anda"
-              required
               value={form.nama}
               onChange={handleChange}
             />
@@ -218,7 +237,6 @@ export function SignUpForm({
               name="email"
               type="email"
               placeholder="m@gmail.com"
-              required
               value={form.email}
               onChange={handleChange}
             />
@@ -233,7 +251,6 @@ export function SignUpForm({
                 name="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Minimal 6 karakter"
-                required
                 value={form.password}
                 onChange={handleChange}
               />
@@ -255,7 +272,6 @@ export function SignUpForm({
                 type="text" // Tetap text agar regex bisa membatasi karakter non-angka
                 inputMode="numeric" // Memunculkan keyboard numerik di HP
                 placeholder="0812..."
-                required
                 value={form.telepon}
                 onChange={handleChange}
               />
@@ -284,7 +300,6 @@ export function SignUpForm({
               id="ktp"
               type="file"
               accept="image/*"
-              required
               onChange={(e) => setFileKtp(e.target.files?.[0] || null)}
               className="cursor-pointer"
             />

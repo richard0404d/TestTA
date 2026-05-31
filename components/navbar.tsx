@@ -23,7 +23,7 @@ export default function Navbar() {
   const [userName, setUserName] = useState("User");
 
   const menus = [
-    { name: "Beranda", href: "/" },
+    { name: "Beranda", href: "/user/dashboard" },
     { name: "Reservasi", href: "/user/reservasi" },
     { name: "Kamar", href: "/user/kamar" },
     { name: "Laporan Kerusakan", href: "/user/laporanKerusakan" },
@@ -95,7 +95,7 @@ export default function Navbar() {
         
         {/* LOGO */}
         <div className="text-white text-2xl font-bold">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/user/dashboard" className="flex items-center gap-2">
             <img
               src="/images/LogoKos.png"
               alt="Logo Kos 75"

@@ -196,7 +196,7 @@ export async function updateSession(
         request.nextUrl.clone();
 
       url.pathname =
-        "/";
+        "/user/dashboard";
 
       return NextResponse.redirect(
         url

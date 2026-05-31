@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation"; // TAMBAHKAN IMPORT INI
 import { CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 declare global {
@@ -13,9 +14,10 @@ declare global {
 
 export default function PembayaranPage() {
   // ============================================
-  // SUPABASE
+  // SUPABASE & ROUTER
   // ============================================
   const supabase = createClient();
+  const router = useRouter(); // INISIALISASI ROUTER
 
   // ============================================
   // STATE
@@ -157,39 +159,53 @@ export default function PembayaranPage() {
 
       window.snap.pay(data.token, {
         onSuccess: async function (result: any) {
-        console.log("SUCCESS", result);
+          console.log("SUCCESS", result);
         
-        // 1. Kirim Email Notifikasi Pembayaran Berhasil
-        try {
-          await fetch("/api/send-pembayaran-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              emailPenyewa: penyewa.email_penyewa, // Email dari state penyewa
-              idKamar: tagihan.sewa?.kamar?.id_kamar,
-              tanggalPembayaran: new Date().toLocaleDateString("id-ID"), // Tanggal hari ini
-              totalPembayaran: tagihan.total_tagihan,
-              status: "Pembayaran Berhasil", // Status untuk subject/isi email
-            }),
-          });
-        } catch (emailError) {
-          console.error("Gagal mengirim email:", emailError);
-        }
+          // 1. Kirim Email Notifikasi Pembayaran Berhasil
+          try {
+            await fetch("/api/send-pembayaran-email", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                emailPenyewa: penyewa.email_penyewa, 
+                idKamar: tagihan.sewa?.kamar?.id_kamar,
+                tanggalPembayaran: new Date().toLocaleDateString("id-ID"), 
+                totalPembayaran: tagihan.total_tagihan,
+                status: "Pembayaran Berhasil", 
+              }),
+            });
+          } catch (emailError) {
+            console.error("Gagal mengirim email:", emailError);
+          }
 
-        showToast("Pembayaran berhasil", "success");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-      },
+          showToast("Pembayaran berhasil", "success");
+          
+          // REFRESH HALAMAN SECARA HALUS
+          setTimeout(() => {
+            router.refresh(); // Me-refresh data server komponen
+            router.push("/user/pembayaran"); // Memastikan ada di url yang benar
+            
+            // Opsional: fetch ulang data secara manual jika state tidak ter-update dari router.refresh()
+            setTagihan(null); 
+            getData(); 
+            setProcessing(false);
+          }, 2000);
+        },
         onPending: () => {
           showToast("Menunggu pembayaran", "success");
-          setTimeout(() => window.location.reload(), 2000);
+          setTimeout(() => {
+            router.refresh();
+            router.push("/user/pembayaran");
+            setProcessing(false);
+          }, 2000);
         },
         onError: () => {
           showToast("Pembayaran gagal", "error");
           setProcessing(false);
         },
-        onClose: () => setProcessing(false),
+        onClose: () => {
+          setProcessing(false);
+        },
       });
     } catch (error: any) {
       showToast(error.message || "Terjadi kesalahan sistem", "error");

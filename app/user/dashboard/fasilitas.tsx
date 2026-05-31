@@ -14,7 +14,7 @@ export default function FasilitasKos() {
       icon: <Wifi size={28} />,
     },
     {
-      title: "R. Jemur",
+      title: "Tempat Jemur",
       icon: <Shirt size={28} />,
     },
     {
@@ -41,7 +41,7 @@ export default function FasilitasKos() {
         
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-bold text-gray-800">
-            Fasilitas Kos
+            Fasilitas Umum Kos
           </h1>
         </div>
 

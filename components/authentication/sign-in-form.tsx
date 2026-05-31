@@ -32,6 +32,9 @@ import {
 import {
   Eye,
   EyeOff,
+  CheckCircle,
+  AlertCircle,
+  X
 } from "lucide-react";
 
 export function LoginForm({
@@ -46,8 +49,14 @@ export function LoginForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // State untuk Toast Notification
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success", // 'success' | 'error'
+  });
 
   // HYDRATION FIX
   const [mounted, setMounted] = useState(false);
@@ -59,14 +68,39 @@ export function LoginForm({
   const router = useRouter();
 
   // ============================================
+  // HELPER TOAST
+  // ============================================
+  const showToast = (message: string, type: "success" | "error") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
+
+  // ============================================
   // HANDLE LOGIN
   // ============================================
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // --- VALIDASI INPUT ---
+    if (!email.trim()) {
+      return showToast("Email tidak boleh kosong!", "error");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return showToast("Format email tidak valid!", "error");
+    }
+
+    if (!password) {
+      return showToast("Password tidak boleh kosong!", "error");
+    }
+    // -----------------------
+
     const supabase = createClient();
     setIsLoading(true);
-    setError(null);
 
     try {
       // ============================================
@@ -77,7 +111,7 @@ export function LoginForm({
         password,
       });
 
-      if (error) throw error;
+      if (error) throw new Error("Email atau password yang Anda masukkan salah.");
 
       const user = data.user;
 
@@ -90,7 +124,7 @@ export function LoginForm({
       // ============================================
       const { data: penyewa, error: penyewaError } = await supabase
         .from("penyewa")
-        .select("id_penyewa, status_penyewa") // Ambil status_penyewa
+        .select("id_penyewa, status_penyewa")
         .eq("id_penyewa", user.id)
         .maybeSingle();
 
@@ -100,13 +134,14 @@ export function LoginForm({
       if (penyewa && !penyewaError) {
         // Cek Status Aktif
         if (penyewa.status_penyewa !== "Aktif") {
-          await supabase.auth.signOut(); // Logout otomatis
+          await supabase.auth.signOut();
           throw new Error("Akun penyewa Anda tidak aktif atau sedang ditangguhkan.");
         }
 
         // ROLE PENYEWA
         localStorage.setItem("role", "3");
-        router.push("/");
+        showToast("Login berhasil!", "success");
+        setTimeout(() => router.push("/user/dashboard"), 1000);
         return;
       }
 
@@ -115,7 +150,7 @@ export function LoginForm({
       // ============================================
       const { data: pegawai, error: pegawaiError } = await supabase
         .from("pegawai")
-        .select("id_role, status_pegawai") // Ambil status_pegawai
+        .select("id_role, status_pegawai")
         .eq("id_pegawai", user.id)
         .maybeSingle();
 
@@ -125,7 +160,7 @@ export function LoginForm({
       if (pegawai && !pegawaiError) {
         // Cek Status Aktif
         if (pegawai.status_pegawai !== "Aktif") {
-          await supabase.auth.signOut(); // Logout otomatis
+          await supabase.auth.signOut();
           throw new Error("Akun pegawai Anda tidak aktif.");
         }
 
@@ -135,8 +170,8 @@ export function LoginForm({
         if (pegawai.id_role === 1 || pegawai.id_role === 2) {
           // SIMPAN ROLE
           localStorage.setItem("role", String(pegawai.id_role));
-          // REDIRECT
-          router.push("/admin/dashboardAdmin");
+          showToast("Login admin berhasil!", "success");
+          setTimeout(() => router.push("/admin/dashboardAdmin"), 1000);
           return;
         }
       }
@@ -144,14 +179,12 @@ export function LoginForm({
       // ============================================
       // ROLE TIDAK DITEMUKAN
       // ============================================
-      await supabase.auth.signOut(); // Bersihkan sesi tak dikenal
+      await supabase.auth.signOut();
       throw new Error("Role tidak ditemukan atau akun tidak valid");
 
     } catch (error: unknown) {
       console.error(error);
-      setError(
-        error instanceof Error ? error.message : "Terjadi kesalahan"
-      );
+      showToast(error instanceof Error ? error.message : "Terjadi kesalahan", "error");
     } finally {
       setIsLoading(false);
     }
@@ -162,91 +195,109 @@ export function LoginForm({
   // ============================================
 
   return (
-    <form
-      className={cn("flex flex-col gap-6", className)}
-      {...props}
-      onSubmit={handleLogin}
-    >
-      <FieldGroup>
-        {/* TITLE */}
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">
-            Masuk ke akun Anda
-          </h1>
-          <p className="text-muted-foreground text-sm text-balance">
-            Masukkan email Anda di bawah ini.
-          </p>
-        </div>
-
-        {/* EMAIL */}
-        <Field>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            type="email"
-            placeholder="m@gmail.com"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-
-        {/* PASSWORD */}
-        <Field>
-          <div className="flex items-center">
-            <FieldLabel htmlFor="password">Password</FieldLabel>
-          </div>
-          <InputGroup>
-            <InputGroupInput
-              id="password"
-              type={showPassword ? "text" : "password"}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
-        </Field>
-
-        {/* ERROR */}
-        {error && (
-          <p className="text-sm text-red-500 font-medium">
-            {error}
-          </p>
-        )}
-
-        {/* BUTTON */}
-        <Field>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Logging in..." : "Login"}
-          </Button>
-        </Field>
-
-        {/* REGISTER LINK */}
-        <div className="text-center text-sm text-muted-foreground mt-2">
-          Belum punya akun?{" "}
-          <Link 
-            href="/authentication/sign-up" 
-            className="text-primary hover:underline font-medium"
+    <>
+      {/* ============================================ */}
+      {/* TOAST NOTIFICATION */}
+      {/* ============================================ */}
+      {toast.show && (
+        <div 
+          className={`fixed top-10 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
+            toast.type === "success" 
+            ? "bg-green-100 text-green-800 border border-green-200" 
+            : "bg-red-100 text-red-800 border border-red-200"
+          }`}
+        >
+          {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+          <p className="font-semibold text-sm">{toast.message}</p>
+          <button 
+            type="button"
+            onClick={() => setToast({ ...toast, show: false })} 
+            className="ml-4 hover:opacity-70 transition"
           >
-            Registrasi
-          </Link>
+            <X size={18} />
+          </button>
         </div>
+      )}
 
-        {/* COPYRIGHT */}
-        <FieldDescription className="text-center mt-4">
-          Copyright © {mounted ? new Date().getFullYear() : ""}
-          <br />
-          All rights reserved.
-        </FieldDescription>
-      </FieldGroup>
-    </form>
+      <form
+        className={cn("flex flex-col gap-6", className)}
+        {...props}
+        onSubmit={handleLogin}
+        noValidate // Mematikan validasi default browser agar toast bisa muncul
+      >
+        <FieldGroup>
+          {/* TITLE */}
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-bold">
+              Masuk ke akun Anda
+            </h1>
+            <p className="text-muted-foreground text-sm text-balance">
+              Masukkan email Anda di bawah ini.
+            </p>
+          </div>
+
+          {/* EMAIL */}
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              placeholder="m@gmail.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </Field>
+
+          {/* PASSWORD */}
+          <Field>
+            <div className="flex items-center">
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+            </div>
+            <InputGroup>
+              <InputGroupInput
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Masukkan password Anda"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </Field>
+
+          {/* BUTTON */}
+          <Field>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
+            </Button>
+          </Field>
+
+          {/* REGISTER LINK */}
+          <div className="text-center text-sm text-muted-foreground mt-2">
+            Belum punya akun?{" "}
+            <Link 
+              href="/authentication/sign-up" 
+              className="text-primary hover:underline font-medium"
+            >
+              Registrasi
+            </Link>
+          </div>
+
+          {/* COPYRIGHT */}
+          <FieldDescription className="text-center mt-4">
+            Copyright © {mounted ? new Date().getFullYear() : ""}
+            <br />
+            All rights reserved.
+          </FieldDescription>
+        </FieldGroup>
+      </form>
+    </>
   );
 }

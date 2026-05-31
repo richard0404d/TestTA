@@ -139,7 +139,7 @@ export default function ManajemenLaporanKerusakan() {
                 <th className="text-left px-6 py-4 font-semibold">Fasilitas</th>
                 <th className="text-left px-6 py-4 font-semibold">Tanggal</th>
                 <th className="text-center px-6 py-4 font-semibold">Status</th>
-                <th className="text-center px-6 py-4 font-semibold">Aksi</th>
+                <th className="text-center px-6 py-4 font-semibold">Detail</th>
               </tr>
             </thead>
             <tbody>

@@ -140,27 +140,37 @@ export default function LaporanKerusakan() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-5 space-y-8">
+    <div className="max-w-5xl mx-auto p-5 space-y-8 pb-32">
       {/* Toast */}
       {toast.show && (
-        <div className={`fixed top-5 right-5 z-50 flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-          {toast.type === "success" ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-          <p className="font-medium">{toast.message}</p>
+        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"}`}>
+          {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+          <p className="font-semibold">{toast.message}</p>
+          <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
+            <X size={18} />
+          </button>
         </div>
       )}
 
       {/* Daftar Laporan */}
-      <div className="border rounded-2xl p-5">
+      <div className="border rounded-2xl p-5 bg-white shadow-sm">
         <h2 className="text-2xl font-bold mb-5">Laporan Saya</h2>
         <div className="space-y-4">
           {currentLaporan.length > 0 ? (
             currentLaporan.map((item) => (
-              <div key={item.id_kerusakan} className="border rounded-xl p-4 flex justify-between items-center">
+              <div key={item.id_kerusakan} className="border rounded-xl p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
                 <div>
-                  <p className="font-semibold">{item.fasilitas?.nama_fasilitas || "Fasilitas"}</p>
-                  <p className="text-sm text-gray-500">{item.keterangan_kerusakan}</p>
+                  <p className="font-semibold text-gray-800">{item.fasilitas?.nama_fasilitas || "Fasilitas"}</p>
+                  <p className="text-sm text-gray-500 mt-1">{item.keterangan_kerusakan}</p>
                 </div>
-                <span className="text-sm bg-gray-100 px-3 py-1 rounded-full">{item.status_perbaikan}</span>
+                <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                  item.status_perbaikan === "Sudah Diperbaiki" ? "bg-green-100 text-green-700" :
+                  item.status_perbaikan === "Proses Perbaikan" ? "bg-yellow-100 text-yellow-700" :
+                  item.status_perbaikan === "Ditolak" ? "bg-red-100 text-red-700" :
+                  "bg-gray-200 text-gray-700"
+                }`}>
+                  {item.status_perbaikan}
+                </span>
               </div>
             ))
           ) : (
@@ -170,7 +180,7 @@ export default function LaporanKerusakan() {
 
         {/* Pagination */}
         {laporanList.length > 0 && (
-          <div className="flex items-center justify-between mt-6">
+          <div className="flex items-center justify-between mt-6 pt-4 border-t">
             <span className="text-sm text-gray-500">Menampilkan {currentPage} halaman dari {totalPages}</span>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>
@@ -185,17 +195,17 @@ export default function LaporanKerusakan() {
       </div>
 
       {/* Form Laporan */}
-      <form onSubmit={handleSubmit} className="border rounded-2xl p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="border rounded-2xl p-6 space-y-5 bg-white shadow-sm">
         <h2 className="text-2xl font-bold">Buat Laporan</h2>
         
         <div>
-          <label className="font-medium">Kamar</label>
-          <input type="text" readOnly value={kamar?.id_kamar || "-"} className="w-full border rounded-lg p-3 mt-2 bg-gray-100" />
+          <label className="font-medium text-gray-700">Kamar</label>
+          <input type="text" readOnly value={kamar?.id_kamar ? `Kamar ${kamar.id_kamar}` : "-"} className="w-full border rounded-xl p-3 mt-2 bg-gray-100 text-gray-600 outline-none" />
         </div>
 
         <div>
-          <label className="font-medium">Fasilitas</label>
-          <select name="id_fasilitas" value={form.id_detail_fasiliitas_kamar} onChange={handleFasilitas} className="w-full border rounded-lg p-3 mt-2">
+          <label className="font-medium text-gray-700">Fasilitas</label>
+          <select name="id_fasilitas" value={form.id_detail_fasiliitas_kamar} onChange={handleFasilitas} className="w-full border rounded-xl p-3 mt-2 outline-none focus:ring-2 focus:ring-blue-100 transition bg-white">
             <option value="">Pilih Fasilitas</option>
             {fasilitas.length > 0 ? (
               fasilitas.map((item) => (
@@ -210,16 +220,25 @@ export default function LaporanKerusakan() {
         </div>
 
         <div>
-          <label className="font-medium">Keterangan Laporan</label>
-          <textarea name="laporan" value={form.laporan} onChange={(e) => setForm({...form, laporan: e.target.value})} className="w-full border rounded-lg p-3 mt-2 h-32" placeholder="Jelaskan kerusakannya..." />
+          <label className="font-medium text-gray-700">Keterangan Laporan</label>
+          <textarea name="laporan" value={form.laporan} onChange={(e) => setForm({...form, laporan: e.target.value})} className="w-full border rounded-xl p-3 mt-2 h-32 outline-none focus:ring-2 focus:ring-blue-100 transition resize-none" placeholder="Jelaskan detail kerusakannya di sini..." />
         </div>
 
         <div>
-          <label className="font-medium">Upload Gambar (Optional)</label>
-          <input type="file" accept="image/*" onChange={(e) => setForm({...form, file: e.target.files?.[0] || null})} className="w-full border rounded-lg p-3 mt-2" />
+          <label className="font-medium text-gray-700">Upload Gambar (Optional)</label>
+          <input type="file" accept="image/*" onChange={(e) => setForm({...form, file: e.target.files?.[0] || null})} className="w-full border rounded-xl p-3 mt-2 outline-none bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer" />
         </div>
 
-        <Button type="submit" disabled={loading}>{loading ? "Mengirim..." : "Kirim Laporan"}</Button>
+        {/* BUTTON TENGAH DAN SESUAI WARNA NAVBAR */}
+        <div className="flex justify-center w-full mt-4 pt-4 border-t">
+          <Button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full md:w-auto min-w-[200px] bg-[#1c3163] hover:bg-[#15254b] text-white py-6 text-lg font-medium rounded-xl transition-all disabled:bg-gray-400"
+          >
+            {loading ? "Mengirim..." : "Kirim Laporan"}
+          </Button>
+        </div>
       </form>
     </div>
   );

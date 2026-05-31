@@ -4,19 +4,17 @@ import Navbar from "@/components/navbar";
 import Content from "@/app/user/dashboard/heroContent";
 import MenuCepat from "@/app/user/dashboard/menuCepat";
 import Fasilitas from "@/app/user/dashboard/fasilitas";
-import SignIn from "@/app/authentication/sign-in/page";
 
 
 export default function Home() {
   return (
     <main>
-    {/* <Navbar/>
+    <Navbar/>
     <Banner/>
     <Content/>
     <MenuCepat/>
     <Fasilitas/>
-    <Footer/> */}
-    <SignIn/>
+    <Footer/>
     </main>
   )
 }
