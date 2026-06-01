@@ -232,7 +232,7 @@ export default function PembayaranPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4 mb-20 relative">
+    <div className="min-h-screen bg-gray-100 py-10 px-4 relative">
       {/* TOAST */}
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>

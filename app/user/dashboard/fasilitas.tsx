@@ -36,7 +36,7 @@ export default function FasilitasKos() {
   ];
 
   return (
-    <div className="bg-gray-50 py-20 px-6 mb-20">
+    <div className="bg-gray-50 py-20 px-6">
       <div className="max-w-7xl mx-auto bg-white rounded-3xl border shadow-sm p-8">
         
         <div className="flex items-center justify-between mb-8">

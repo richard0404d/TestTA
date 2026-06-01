@@ -42,7 +42,7 @@ export default function MenuCepatPenyewa() {
       desc: "Lihat peraturan dan tata tertib kos",
       icon: "📘",
       color: "bg-blue-600",
-      href: "/user/peraturan",
+      href: "/documents/PeraturanKos.pdf",
     },
   ];
 

@@ -51,7 +51,7 @@ export default function Reservasi() {
   const bannerImages = [
     "/images/GambarKamar.png",
     "/images/GambarKamar2.png", 
-    "/images/GambarKamar.png", 
+    "/images/GambarKamar3.png", 
   ];
 
   // Auto-slide effect (setiap 3 detik pindah)
