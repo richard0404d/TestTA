@@ -330,7 +330,7 @@ export default function Reservasi() {
       if (errClaim || !claimKamar || claimKamar.length === 0) {
         setLoading(false);
         getKamar(); // Muat ulang daftar kamar karena kamar pilihan pengguna sudah diambil orang lain
-        return showToast("Gagal! Kamar ini baru saja direbut atau direservasi oleh orang lain.", "error");
+        return showToast("Gagal! Kamar ini baru saja direservasi oleh orang lain.", "error");
       }
 
       // Catat kamar yang berhasil dikunci untuk penanganan jika terjadi kegagalan sistem di bawah
