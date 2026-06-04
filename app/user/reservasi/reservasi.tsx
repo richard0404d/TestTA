@@ -8,7 +8,7 @@ import { CheckCircle, AlertCircle, X } from "lucide-react";
 
 export default function Reservasi() {
   // ============================================
-  // SUPABASE
+  // SUPABASE & ROUTER
   // ============================================
   const supabase = createClient();
   const router = useRouter();
@@ -20,8 +20,6 @@ export default function Reservasi() {
   const [kamar, setKamar] = useState<any[]>([]);
   const [penyewa, setPenyewa] = useState<any>(null);
   const [hargaTotal, setHargaTotal] = useState(0);
-
-  // STATE BARU UNTUK FASILITAS
   const [fasilitas, setFasilitas] = useState<any[]>([]);
 
   // State untuk Toast Notification
@@ -42,19 +40,17 @@ export default function Reservasi() {
   });
 
   // ============================================
-  // CAROUSEL LOGIC UNIFIED (MOBILE & DESKTOP)
+  // CAROUSEL LOGIC AUTOMATIC SLIDE
   // ============================================
   const carouselRef = useRef<HTMLDivElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   
-  // Masukkan gambar-gambar yang ingin ditampilkan di sini
   const bannerImages = [
     "/images/GambarKamar.png",
     "/images/GambarKamar2.png", 
     "/images/GambarKamar3.png", 
   ];
 
-  // Auto-slide effect (setiap 3 detik pindah)
   useEffect(() => {
     const timer = setInterval(() => {
       if (carouselRef.current) {
@@ -72,7 +68,6 @@ export default function Reservasi() {
     return () => clearInterval(timer);
   }, [currentSlide, bannerImages.length]);
 
-  // Sinkronisasi manual swipe dengan state indikator titik
   const handleScroll = () => {
     if (carouselRef.current) {
       const scrollPosition = carouselRef.current.scrollLeft;
@@ -84,7 +79,7 @@ export default function Reservasi() {
     }
   };
 
-  // Helper untuk memunculkan notifikasi
+  // Helper Toast
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -93,7 +88,7 @@ export default function Reservasi() {
   };
 
   // ============================================
-  // GET KAMAR
+  // GET DATA KAMAR TERSEDIA
   // ============================================
   const getKamar = async () => {
     const { data, error } = await supabase
@@ -108,7 +103,6 @@ export default function Reservasi() {
 
     setKamar(data || []);
 
-    // AUTO SELECT
     if (data && data.length > 0) {
       setForm((prev) => ({
         ...prev,
@@ -118,7 +112,7 @@ export default function Reservasi() {
   };
 
   // ============================================
-  // GET PENYEWA
+  // GET DATA PROFILE PENYEWA
   // ============================================
   const getPenyewa = async () => {
     const { data: authData } = await supabase.auth.getUser();
@@ -147,7 +141,7 @@ export default function Reservasi() {
   };
 
   // ============================================
-  // GET SEMUA FASILITAS (Karena semua kamar fasilitasnya sama)
+  // GET DATA FASILITAS
   // ============================================
   const getFasilitas = async () => {
     const { data, error } = await supabase
@@ -160,17 +154,17 @@ export default function Reservasi() {
   };
 
   // ============================================
-  // LOAD
+  // LIFECYCLE INSIALISASI DATA
   // ============================================
   useEffect(() => {
     checkExpiredReservasi();
     getKamar();
     getPenyewa();
-    getFasilitas(); // Panggil saat awal komponen di-load
+    getFasilitas();
   }, []);
 
   // ============================================
-  // HITUNG HARGA
+  // KALKULASI HARGA DINAMIS
   // ============================================
   useEffect(() => {
     if (!form.kamar) return;
@@ -183,7 +177,6 @@ export default function Reservasi() {
 
     let total = Number(selectedKamar.harga_sewa_kamar);
 
-    // 2 ORANG
     if (form.penghuni === "2") {
       total += Number(selectedKamar.harga_tambahan_penyewa);
     }
@@ -191,9 +184,7 @@ export default function Reservasi() {
     setHargaTotal(total);
   }, [form.penghuni, form.kamar, kamar]);
 
-  // ============================================
-  // HANDLE CHANGE
-  // ============================================
+  // Handle Form Change
   const handleChange = (e: any) => {
     setForm({
       ...form,
@@ -202,7 +193,7 @@ export default function Reservasi() {
   };
 
   // ============================================
-  // CHECK EXPIRED RESERVASI
+  // BERSIHKAN RESERVASI KADALUARSA
   // ============================================
   const checkExpiredReservasi = async () => {
     try {
@@ -222,19 +213,16 @@ export default function Reservasi() {
       if (!data) return;
 
       for (const item of data) {
-        // UPDATE STATUS RESERVASI
         await supabase
           .from("reservasi")
           .update({ status_reservasi: "Batal" })
           .eq("id_reservasi", item.id_reservasi);
 
-        // UPDATE STATUS KAMAR
         await supabase
           .from("kamar")
           .update({ status_kamar: "Tersedia" })
           .eq("id_kamar", item.id_kamar);
 
-        // KIRIM EMAIL BATAL
         await fetch("/api/send-reservasi-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -252,75 +240,38 @@ export default function Reservasi() {
     }
   };
 
-  function tambahSatuBulan(
-    tanggalAwal: string
-  ) {
+  function tambahSatuBulan(tanggalAwal: string) {
+    const start = new Date(tanggalAwal);
+    const tahun = start.getFullYear();
+    const bulan = start.getMonth();
+    const tanggal = start.getDate();
 
-    const start =
-      new Date(tanggalAwal);
+    const lastDayTarget = new Date(tahun, bulan + 2, 0).getDate();
+    const tanggalFix = Math.min(tanggal, lastDayTarget);
 
-    const tahun =
-      start.getFullYear();
-
-    const bulan =
-      start.getMonth();
-
-    const tanggal =
-      start.getDate();
-
-    const lastDayTarget =
-      new Date(
-        tahun,
-        bulan + 2,
-        0
-      ).getDate();
-
-    const tanggalFix =
-      Math.min(
-        tanggal,
-        lastDayTarget
-      );
-
-    return new Date(
-      tahun,
-      bulan + 1,
-      tanggalFix
-    );
+    return new Date(tahun, bulan + 1, tanggalFix);
   }
 
   // ============================================
-  // HANDLE SUBMIT
+  // PROSES SIMPAN RESERVASI & ANTI RACE CONDITION
   // ============================================
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
+    let roomClaimedId: number | null = null;
+
     try {
-      // ============================================
-      // VALIDASI INPUT 
-      // ============================================
-      if (!form.kamar) {
-        return showToast("Pilih kamar terlebih dahulu!", "error");
-      }
-      if (!form.telepon) {
-        return showToast("Nomor telepon tidak boleh kosong!", "error");
-      }
-      if (!form.tanggal) {
-        return showToast("Tanggal masuk wajib diisi!", "error");
-      }
+      // --- VALIDASI FORM ---
+      if (!form.kamar) return showToast("Pilih kamar terlebih dahulu!", "error");
+      if (!form.telepon) return showToast("Nomor telepon tidak boleh kosong!", "error");
+      if (!form.tanggal) return showToast("Tanggal masuk wajib diisi!", "error");
 
-      // VALIDASI 2 ORANG
       if (form.penghuni === "2") {
-        if (!form.namaPenghuni2 || form.namaPenghuni2.trim() === "") {
-          return showToast("Nama penghuni kedua wajib diisi!", "error");
-        }
-        if (!form.teleponPenghuni2 || form.teleponPenghuni2.trim() === "") {
-          return showToast("Nomor telepon penghuni kedua wajib diisi!", "error");
-        }
+        if (!form.namaPenghuni2 || form.namaPenghuni2.trim() === "") return showToast("Nama penghuni kedua wajib diisi!", "error");
+        if (!form.teleponPenghuni2 || form.teleponPenghuni2.trim() === "") return showToast("Nomor telepon penghuni kedua wajib diisi!", "error");
       }
 
-      // VALIDASI TANGGAL MAX 5 HARI
       const today = new Date();
-      // Reset jam ke 00:00:00 untuk perbandingan tanggal yang akurat
       today.setHours(0, 0, 0, 0); 
       
       const maxDate = new Date(today);
@@ -329,18 +280,12 @@ export default function Reservasi() {
       const selectedDate = new Date(form.tanggal);
       selectedDate.setHours(0, 0, 0, 0);
 
-      if (selectedDate < today) {
-        return showToast("Tanggal masuk tidak boleh di masa lalu!", "error");
-      }
-      if (selectedDate > maxDate) {
-        return showToast("Tanggal masuk maksimal 5 hari dari hari ini!", "error");
-      }
+      if (selectedDate < today) return showToast("Tanggal masuk tidak boleh di masa lalu!", "error");
+      if (selectedDate > maxDate) return showToast("Tanggal masuk maksimal 5 hari dari hari ini!", "error");
 
       setLoading(true);
 
-      // ============================================
-      // GET USER LOGIN
-      // ============================================
+      // --- DAPATKAN USER LOGIN ---
       const { data: authData } = await supabase.auth.getUser();
       const user = authData.user;
 
@@ -349,12 +294,10 @@ export default function Reservasi() {
         return showToast("User tidak ditemukan, silakan login kembali.", "error");
       }
 
-      // ============================================
-      // CEK RESERVASI AKTIF
-      // ============================================
+      // --- VALIDASI DUPLIKASI RESERVASI USER ---
       const { data: reservasiAktif } = await supabase
         .from("reservasi")
-        .select(`*, penyewa (email_penyewa)`)
+        .select("id_reservasi")
         .eq("id_penyewa", user.id)
         .in("status_reservasi", ["Menunggu Pembayaran", "Berhasil"]);
 
@@ -363,12 +306,9 @@ export default function Reservasi() {
         return showToast("Anda masih memiliki reservasi aktif!", "error");
       }
 
-      // ============================================
-      // CEK SEWA AKTIF
-      // ============================================
       const { data: sewaAktif } = await supabase
         .from("sewa")
-        .select("*")
+        .select("id_sewa")
         .eq("id_penyewa", user.id)
         .in("status_sewa", ["Aktif", "Menunggu Pembayaran"]);
 
@@ -378,8 +318,25 @@ export default function Reservasi() {
       }
 
       // ============================================
-      // INSERT RESERVASI
+      // LOGIKA UTAMA: ATOMIC CLAMP (KUNCI KAMAR BERDASARKAN STATUS)
       // ============================================
+      const { data: claimKamar, error: errClaim } = await supabase
+        .from("kamar")
+        .update({ status_kamar: "Direservasi" })
+        .eq("id_kamar", Number(form.kamar))
+        .eq("status_kamar", "Tersedia") // Kamar mutlak harus berstatus Tersedia saat baris perintah ini dieksekusi
+        .select();
+
+      if (errClaim || !claimKamar || claimKamar.length === 0) {
+        setLoading(false);
+        getKamar(); // Muat ulang daftar kamar karena kamar pilihan pengguna sudah diambil orang lain
+        return showToast("Gagal! Kamar ini baru saja direbut atau direservasi oleh orang lain.", "error");
+      }
+
+      // Catat kamar yang berhasil dikunci untuk penanganan jika terjadi kegagalan sistem di bawah
+      roomClaimedId = Number(form.kamar);
+
+      // --- PROSES INSERT DATA RESERVASI ---
       const { data: reservasiData, error: reservasiError } = await supabase
         .from("reservasi")
         .insert([
@@ -398,30 +355,11 @@ export default function Reservasi() {
         .select()
         .single();
 
-      if (reservasiError) {
-        console.log(reservasiError);
-        setLoading(false);
-        return showToast("Gagal membuat reservasi: " + reservasiError.message, "error");
-      }
+      if (reservasiError) throw new Error("Gagal membuat data reservasi: " + reservasiError.message);
 
-      // ============================================
-      // INSERT SEWA
-      // ============================================
-      const tanggalBerakhir =
-      tambahSatuBulan(
-        form.tanggal
-      );
-
-      const tanggalBerakhirString =
-      `${tanggalBerakhir.getFullYear()}-${
-        String(
-          tanggalBerakhir.getMonth() + 1
-        ).padStart(2, "0")
-      }-${
-        String(
-          tanggalBerakhir.getDate()
-        ).padStart(2, "0")
-      }`;
+      // --- PROSES INSERT DATA SEWA ---
+      const tanggalBerakhir = tambahSatuBulan(form.tanggal);
+      const tanggalBerakhirString = `${tanggalBerakhir.getFullYear()}-${String(tanggalBerakhir.getMonth() + 1).padStart(2, "0")}-${String(tanggalBerakhir.getDate()).padStart(2, "0")}`;
 
       const { data: sewaData, error: sewaError } = await supabase
         .from("sewa")
@@ -438,15 +376,9 @@ export default function Reservasi() {
         .select()
         .single();
 
-      if (sewaError) {
-        console.log(sewaError);
-        setLoading(false);
-        return showToast("Gagal membuat data sewa: " + sewaError.message, "error");
-      }
+      if (sewaError) throw new Error("Gagal membuat kontrak sewa: " + sewaError.message);
 
-      // ============================================
-      // INSERT TAGIHAN
-      // ============================================
+      // --- PROSES INSERT DATA TAGIHAN ---
       const batasPembayaran = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
       const { error: tagihanError } = await supabase
@@ -460,30 +392,10 @@ export default function Reservasi() {
           },
         ]);
 
-      if (tagihanError) {
-        console.log(tagihanError);
-        setLoading(false);
-        return showToast("Gagal membuat tagihan: " + tagihanError.message, "error");
-      }
+      if (tagihanError) throw new Error("Gagal menerbitkan lembar tagihan: " + tagihanError.message);
 
-      // ============================================
-      // UPDATE STATUS KAMAR
-      // ============================================
-      const { error: kamarError } = await supabase
-        .from("kamar")
-        .update({ status_kamar: "Direservasi" })
-        .eq("id_kamar", Number(form.kamar));
-
-      if (kamarError) {
-        console.log(kamarError);
-        setLoading(false);
-        return showToast("Gagal update status kamar: " + kamarError.message, "error");
-      }
-
-      // ============================================
-      // KIRIM EMAIL
-      // ============================================
-      await fetch("/api/send-reservasi-email", {
+      // --- KIRIM EMAIL KONFIRMASI (BACKGROUND PROCESS) ---
+      fetch("/api/send-reservasi-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -493,28 +405,35 @@ export default function Reservasi() {
           totalHarga: hargaTotal,
           status: "Menunggu Pembayaran",
         }),
-      });
+      }).catch((err) => console.log("Gagal log kirim email:", err));
 
-      // ============================================
-      // SUCCESS
-      // ============================================
+      // --- SELESAI ---
       showToast("Reservasi berhasil dibuat!", "success");
       
-      // Delay sedikit agar toast terbaca sebelum pindah halaman
       setTimeout(() => {
         router.push("/user/pembayaran");
       }, 1500);
 
     } catch (error: any) {
-      console.log(error);
-      showToast(error.message || "Terjadi kesalahan sistem.", "error");
+      console.error(error);
+      showToast(error.message || "Terjadi kesalahan sistem internal.", "error");
       setLoading(false);
+
+      // ============================================
+      // ANTI ERROR HANG: LOGIKA ROLLBACK OTOMATIS
+      // ============================================
+      // Jika proses di tengah jalan gagal (misal server down saat membuat tagihan), 
+      // kembalikan status kamar ke posisi semula agar tidak terkunci/gantung selamanya.
+      if (roomClaimedId) {
+        await supabase
+          .from("kamar")
+          .update({ status_kamar: "Tersedia" })
+          .eq("id_kamar", roomClaimedId);
+      }
     }
   };
 
-  // ============================================
-  // FORMAT LOCAL DATE UNTUK INPUT CALENDAR
-  // ============================================
+  // Sinkronisasi Batas Tanggal Input Kalender
   const today = new Date();
   const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split("T")[0];
   const maxDateLimit = new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000 - today.getTimezoneOffset() * 60000).toISOString().split("T")[0];
@@ -522,9 +441,7 @@ export default function Reservasi() {
   return (
     <div className="max-w-3xl mx-auto pb-32 px-4 mt-10 relative">
 
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION */}
-      {/* ============================================ */}
+      {/* TOAST COMPONENT */}
       {toast.show && (
         <div 
           className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
@@ -544,9 +461,7 @@ export default function Reservasi() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* UNIFIED BANNER (CAROUSEL AUTO-SLIDE) */}
-      {/* ============================================ */}
+      {/* BANNER CAROUSEL CONTAINER */}
       <div className="relative mb-8 rounded-2xl overflow-hidden h-[220px] md:h-[400px]">
         <div 
           ref={carouselRef}
@@ -564,7 +479,6 @@ export default function Reservasi() {
           ))}
         </div>
         
-        {/* Indikator Dots */}
         <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 pointer-events-none">
           {bannerImages.map((_, idx) => (
             <div 
@@ -575,12 +489,12 @@ export default function Reservasi() {
         </div>
       </div>
 
-      {/* FORM */}
+      {/* MAIN FORM TRANSACTION */}
       <form
         onSubmit={handleSubmit}
         className="border rounded-2xl p-6 bg-white shadow-sm space-y-5"
       >
-        {/* JUMLAH PENGHUNI */}
+        {/* PENGHUNI */}
         <div>
           <label className="font-medium">Jumlah Penghuni</label>
           <div className="flex gap-5 mt-3">
@@ -609,7 +523,7 @@ export default function Reservasi() {
           </div>
         </div>
 
-        {/* JENIS KELAMIN */}
+        {/* GENDER */}
         <div>
           <label className="font-medium">Jenis Kelamin</label>
           <div className="w-full border rounded-lg p-3 mt-2 bg-gray-50 text-gray-700">
@@ -617,7 +531,7 @@ export default function Reservasi() {
           </div>
         </div>
 
-        {/* PILIH KAMAR */}
+        {/* SELECT KAMAR */}
         <div>
           <label className="font-medium">Pilih Kamar</label>
           <select
@@ -649,7 +563,7 @@ export default function Reservasi() {
           />
         </div>
 
-        {/* PENGHUNI 2 */}
+        {/* CONDITIONAL FIELD FOR SECOND COMPANION */}
         {form.penghuni === "2" && (
           <>
             <div>
@@ -677,7 +591,7 @@ export default function Reservasi() {
           </>
         )}
 
-        {/* TANGGAL */}
+        {/* DATE FIELD */}
         <div>
           <label className="font-medium">Tanggal Masuk <span className="text-red-500">*</span></label>
           <input
@@ -692,7 +606,7 @@ export default function Reservasi() {
           <p className="text-sm text-gray-500 mt-2">Maksimal 5 hari dari hari ini</p>
         </div>
 
-        {/* HARGA */}
+        {/* PRICE SUMMARY */}
         <div className="border rounded-xl p-5 bg-blue-50 border-blue-100">
           <p className="text-blue-600/80 text-sm font-medium">Total Harga</p>
           <h2 className="text-3xl font-bold text-[#1c3163] mt-1">
@@ -700,7 +614,7 @@ export default function Reservasi() {
           </h2>
         </div>
 
-        {/* BUTTON */}
+        {/* SUBMIT ACTION BUTTON */}
         <Button
           type="submit"
           disabled={loading || kamar.length === 0}
@@ -710,9 +624,7 @@ export default function Reservasi() {
         </Button>
       </form>
 
-      {/* ============================================ */}
-      {/* SECTION FASILITAS KAMAR DARI DATABASE */}
-      {/* ============================================ */}
+      {/* STATIC INFORMATIVE VALUE FOOTER SUBSECTION */}
       <div className="border rounded-2xl p-6 bg-white shadow-sm mt-6">
         <h3 className="font-bold text-gray-800 mb-4 border-b pb-3">Fasilitas Kamar</h3>
         {fasilitas.length > 0 ? (

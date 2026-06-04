@@ -158,7 +158,7 @@ export default function KamarPenyewaPage() {
     }
   };
 
-  // ============================================
+// ============================================
   // ACTION: KELUAR KOS
   // ============================================
   const handleKeluarKos = async () => {
@@ -187,13 +187,22 @@ export default function KamarPenyewaPage() {
 
       showToast("Anda telah berhasil menyelesaikan masa sewa kos.", "success");
       
-      // Redirect setelah sukses
+      // PERBAIKAN 1: Tutup modal agar tidak nyangkut
+      setShowModalKeluar(false);
+
+      // PERBAIKAN 2: Ubah UI secara langsung / refresh halaman
       setTimeout(() => {
-        router.push("/user/kamar");
+        // Cara 1: Ubah state langsung agar tampilan berubah jadi "Tidak Ada Kamar"
+        setSewa(null); 
+        
+        // ATAU Cara 2: Gunakan reload jika ingin memuat ulang dari server
+        // window.location.reload(); 
       }, 2000);
 
     } catch (err: any) {
       showToast("Gagal memproses keluar kos: " + err.message, "error");
+    } finally {
+      // PERBAIKAN 3: Pastikan loading berhenti, baik saat sukses maupun error
       setIsProcessing(false);
     }
   };
