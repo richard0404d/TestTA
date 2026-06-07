@@ -2,15 +2,25 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // ============================================
+  // PENGECUALIAN UNTUK API MIDTRANS (TIDAK DICEGAT)
+  // ============================================
+  if (request.nextUrl.pathname.startsWith("/api/midtrans")) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
+  // ============================================
+  // INISIALISASI SUPABASE (Sesuaikan .env)
+  // ============================================
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY!, // Sesuaikan dengan .env kamu
     {
       cookies: {
         get(name: string) {
@@ -38,31 +48,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 1. Dapatkan data user yang sedang aktif
+  // ============================================
+  // GET USER & ROUTE PROTECTION
+  // ============================================
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 2. Tentukan route mana saja yang perlu diproteksi
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/user') || request.nextUrl.pathname.startsWith('/admin')
 
-  // 3. Logika Route Protection: Jika mencoba masuk route terproteksi TAPI tidak ada user
+  // Jika mencoba masuk route terproteksi TAPI tidak ada user
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone()
-    // Arahkan ke halaman login kamu yang sesuai
-    url.pathname = '/authentication/sign-in' 
+    url.pathname = '/authentication/sign-in' // Arahkan ke path login kamu
     return NextResponse.redirect(url)
   }
-
-  // JIKA berhasil login dan mencoba akses halaman login, lempar ke dashboard (Opsional)
-  // if (user && request.nextUrl.pathname.startsWith('/authentication/sign-in')) {
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = '/user/dashboard' // Lempar ke dashboard sesuai role jika perlu
-  //   return NextResponse.redirect(url)
-  // }
 
   return supabaseResponse
 }
 
-// Config matcher wajib ada di root middleware.ts
 export const config = {
   matcher: [
     /*
