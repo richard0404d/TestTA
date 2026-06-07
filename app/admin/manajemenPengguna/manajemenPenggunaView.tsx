@@ -745,7 +745,12 @@ export default function ManajemenPenggunaView() {
                   value={pegawaiForm.email_pegawai}
                   onChange={handlePegawaiChange}
                   placeholder="Masukkan email"
-                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                  readOnly={!!editPegawaiId} // Menjadi true jika sedang mode edit
+                  className={`w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 ${
+                    editPegawaiId 
+                      ? "bg-gray-100 text-gray-500 cursor-not-allowed focus:ring-0" 
+                      : "bg-white"
+                  }`}
                 />
               </div>
 
@@ -859,7 +864,12 @@ export default function ManajemenPenggunaView() {
                   value={penyewaForm.email_penyewa}
                   onChange={handlePenyewaChange}
                   placeholder="Masukkan email valid"
-                  className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100"
+                  readOnly={!!editPenyewaId} // Menjadi true jika sedang mode edit
+                  className={`w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 ${
+                    editPenyewaId 
+                      ? "bg-gray-100 text-gray-500 cursor-not-allowed focus:ring-0" 
+                      : "bg-white"
+                  }`}
                 />
               </div>
 
