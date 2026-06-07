@@ -28,11 +28,9 @@ export default function PembayaranPage() {
   const [histories, setHistories] = useState<any[]>([]);
   const [penyewa, setPenyewa] = useState<any>(null);
 
-  // PAGINATION STATE
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // STATE UNTUK TOAST NOTIFICATION
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -55,28 +53,51 @@ export default function PembayaranPage() {
     const script = document.createElement("script");
     script.id = "midtrans-script";
     script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-
-    script.setAttribute(
-      "data-client-key",
-      process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!
-    );
+    script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!);
     script.async = true;
 
     document.body.appendChild(script);
   }, []);
 
   // ============================================
-  // GET DATA
+  // GET DATA & TANGKAP REDIRECT E-WALLET
   // ============================================
   useEffect(() => {
-    getData();
+    // Mengecek URL jika user baru saja dialihkan kembali dari E-Wallet (DANA/Gopay)
+    const urlParams = new URLSearchParams(window.location.search);
+    const txStatus = urlParams.get("transaction_status");
+
+    if (txStatus === "settlement" || txStatus === "capture" || txStatus === "pending") {
+      showToast("Memverifikasi pembayaran Anda...", "success");
+      setProcessing(true);
+      
+      // AUTO POLLING: Tarik data 4 kali dengan jeda 3 detik
+      let attempts = 0;
+      getData(); // Tarikan pertama
+
+      const interval = setInterval(() => {
+        attempts++;
+        getData(); // Tarikan berikutnya
+        
+        if (attempts >= 4) {
+          clearInterval(interval);
+          setProcessing(false);
+          // Bersihkan URL dari parameter Midtrans agar rapi
+          router.replace("/user/pembayaran");
+        }
+      }, 3000);
+
+      return () => clearInterval(interval);
+    } else {
+      // Jika halaman dibuka normal, cukup tarik data 1x
+      getData();
+    }
   }, []);
 
   const getData = async () => {
     try {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData.user;
-
       if (!user) return;
 
       const { data: sewaUser } = await supabase
@@ -90,7 +111,6 @@ export default function PembayaranPage() {
         .select("*")
         .eq("id_penyewa", user.id)
         .single();
-
       setPenyewa(penyewaData);
 
       const { data: tagihanData, error: tagihanError } = await supabase
@@ -100,12 +120,16 @@ export default function PembayaranPage() {
         .eq("status_tagihan", "Belum Dibayar")
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle(); // PERBAIKAN: Menggunakan maybeSingle agar tidak error 406 jika tagihan kosong
+        .maybeSingle(); 
 
-      if (!tagihanError) {
+      // PERBAIKAN PENTING: Wajib setTagihan(null) jika data kosong agar layar otomatis berubah
+      if (!tagihanError && tagihanData) {
         setTagihan(tagihanData);
+      } else {
+        setTagihan(null); 
       }
 
+      // Ambil Histori Pembayaran
       const { data: pembayaranData } = await supabase
         .from("pembayaran")
         .select(`*, tagihan (*, sewa (*))`)
@@ -114,8 +138,8 @@ export default function PembayaranPage() {
       const filteredHistory = (pembayaranData || []).filter((item) =>
         sewaUser?.some((s) => s.id_sewa === item.tagihan?.id_sewa)
       );
-
       setHistories(filteredHistory);
+
     } catch (error) {
       console.log(error);
     } finally {
@@ -158,27 +182,26 @@ export default function PembayaranPage() {
       }
 
       window.snap.pay(data.token, {
-        onSuccess: async function (result: any) {
+        onSuccess: function (result: any) {
           console.log("SUCCESS", result);
-        
-          // PERBAIKAN: Logika kirim email dan update DB dihapus dari sini.
-          // Semua sudah diurus secara otomatis oleh Webhook Midtrans di server.
-          showToast("Pembayaran berhasil diproses!", "success");
+          showToast("Pembayaran berhasil! Memverifikasi...", "success");
           
-          // Beri waktu 3 detik agar Webhook selesai bekerja sebelum me-refresh halaman
-          setTimeout(() => {
-            router.refresh(); 
-            router.push("/user/pembayaran"); 
-            setTagihan(null); 
-            getData(); 
-            setProcessing(false);
+          // AUTO POLLING UNTUK POPUP VISA/QRIS
+          let attempts = 0;
+          const interval = setInterval(async () => {
+            attempts++;
+            await getData(); // Minta data terbaru dari Supabase
+
+            if (attempts >= 4) {
+              clearInterval(interval);
+              setProcessing(false);
+            }
           }, 3000);
         },
         onPending: () => {
-          showToast("Menunggu pembayaran", "success");
+          showToast("Menunggu pembayaran...", "success");
           setTimeout(() => {
             router.refresh();
-            router.push("/user/pembayaran");
             setProcessing(false);
           }, 2000);
         },
