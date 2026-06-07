@@ -163,7 +163,7 @@ export default function PembayaranPage() {
         
           // 1. Kirim Email Notifikasi Pembayaran Berhasil
           try {
-            await fetch("/api/send-pembayaran-email", {
+            const emailResponse = await fetch("/api/send-pembayaran-email", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -174,8 +174,16 @@ export default function PembayaranPage() {
                 status: "Pembayaran Berhasil", 
               }),
             });
+
+            const emailData = await emailResponse.json();
+
+            if (!emailResponse.ok) {
+              console.error("API Error kirim email:", emailData.error);
+            } else {
+              console.log("Email berhasil dikirim!");
+            }
           } catch (emailError) {
-            console.error("Gagal mengirim email:", emailError);
+            console.error("Gagal memanggil API email:", emailError);
           }
 
           showToast("Pembayaran berhasil", "success");

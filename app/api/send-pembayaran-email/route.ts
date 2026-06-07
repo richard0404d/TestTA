@@ -1,10 +1,8 @@
+// app/api/send-pembayaran-email/route.ts
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    // ============================================
-    // BODY
-    // ============================================
     const body = await req.json();
     const {
       emailPenyewa,
@@ -21,20 +19,30 @@ export async function POST(req: Request) {
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "accept": "application/json",
+          "content-type": "application/json",
           "api-key": process.env.BREVO_API_KEY!,
         },
         body: JSON.stringify({
           sender: {
             name: "Kos 75",
-            email: "rumahkos2an@gmail.com",
+            email: "rumahkos2an@gmail.com", // PASTIKAN EMAIL INI SUDAH DIVERIFIKASI DI BREVO
           },
           to: [{ email: to }],
-          subject,
+          subject: subject,
           htmlContent: html,
         }),
       });
-      return await response.json();
+
+      const data = await response.json();
+
+      // PERBAIKAN: Tangkap error jika Brevo menolak request
+      if (!response.ok) {
+        console.error("BREVO REJECTED:", data);
+        throw new Error(data.message || "Gagal mengirim email via Brevo");
+      }
+
+      return data;
     };
 
     // ============================================
@@ -86,8 +94,9 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("EMAIL ERROR:", error);
-    return NextResponse.json({ success: false }, { status: 500 });
+  } catch (error: any) {
+    // PERBAIKAN: Tampilkan pesan error spesifik di terminal
+    console.error("EMAIL ERROR:", error.message || error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
