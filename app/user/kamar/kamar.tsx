@@ -29,10 +29,10 @@ export default function KamarPenyewaPage() {
   });
 
   const statusColors: any = {
-  "Baik": "bg-green-100 text-green-700",
-  "Rusak": "bg-red-100 text-red-700",
-  "Sedang Diperbaiki": "bg-yellow-100 text-yellow-700",
-};
+    "Baik": "bg-green-100 text-green-700",
+    "Rusak": "bg-red-100 text-red-700",
+    "Sedang Diperbaiki": "bg-yellow-100 text-yellow-700",
+  };
 
   // State Toast
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
@@ -107,16 +107,20 @@ export default function KamarPenyewaPage() {
   }, [supabase]);
 
   // ============================================
-  // LOGIC: BATAS WAKTU UBAH PENGHUNI (1 BULAN)
+  // LOGIC: BATAS WAKTU UBAH PENGHUNI (1 BULAN VIA DATABASE)
   // ============================================
   const cekBisaUbahPenghuni = () => {
-    if (!sewa) return false;
-    const lastChange = localStorage.getItem(`last_occupant_change_${sewa.id_sewa}`);
-    if (lastChange) {
-      const daysPassed = (Date.now() - Number(lastChange)) / (1000 * 60 * 60 * 24);
-      if (daysPassed < 30) return false;
-    }
-    return true;
+    if (!reservasi) return false;
+    
+    // Jika belum pernah diubah (NULL), maka boleh diubah
+    if (!reservasi.terakhir_ubah_penghuni) return true; 
+
+    // Hitung selisih hari dari database
+    const lastChange = new Date(reservasi.terakhir_ubah_penghuni).getTime();
+    const daysPassed = (Date.now() - lastChange) / (1000 * 60 * 60 * 24);
+    
+    // Jika sudah lewat atau sama dengan 30 hari, kembalikan true (bisa diubah)
+    return daysPassed >= 30;
   };
 
   const isUbahPenghuniDisabled = !cekBisaUbahPenghuni();
@@ -132,10 +136,11 @@ export default function KamarPenyewaPage() {
 
     setIsProcessing(true);
     try {
-      const updateData = {
+      const updateData: any = {
         jumlah_penghuni: formPenghuni.jumlah,
         nama_penghuni2: formPenghuni.jumlah === 2 ? formPenghuni.nama_penghuni2 : null,
         nomor_telepon2: formPenghuni.jumlah === 2 ? formPenghuni.nomor_telepon2 : null,
+        terakhir_ubah_penghuni: new Date().toISOString(), // Simpan waktu saat ini ke database
       };
 
       const { error } = await supabase
@@ -144,9 +149,6 @@ export default function KamarPenyewaPage() {
         .eq("id_reservasi", reservasi.id_reservasi);
 
       if (error) throw error;
-
-      // Catat waktu perubahan di local storage (karena tidak ada kolomnya di DB)
-      localStorage.setItem(`last_occupant_change_${sewa.id_sewa}`, Date.now().toString());
       
       setReservasi({ ...reservasi, ...updateData });
       showToast("Jumlah penghuni berhasil diperbarui!", "success");
@@ -158,7 +160,7 @@ export default function KamarPenyewaPage() {
     }
   };
 
-// ============================================
+  // ============================================
   // ACTION: KELUAR KOS
   // ============================================
   const handleKeluarKos = async () => {
@@ -187,22 +189,15 @@ export default function KamarPenyewaPage() {
 
       showToast("Anda telah berhasil menyelesaikan masa sewa kos.", "success");
       
-      // PERBAIKAN 1: Tutup modal agar tidak nyangkut
       setShowModalKeluar(false);
 
-      // PERBAIKAN 2: Ubah UI secara langsung / refresh halaman
       setTimeout(() => {
-        // Cara 1: Ubah state langsung agar tampilan berubah jadi "Tidak Ada Kamar"
         setSewa(null); 
-        
-        // ATAU Cara 2: Gunakan reload jika ingin memuat ulang dari server
-        // window.location.reload(); 
       }, 2000);
 
     } catch (err: any) {
       showToast("Gagal memproses keluar kos: " + err.message, "error");
     } finally {
-      // PERBAIKAN 3: Pastikan loading berhenti, baik saat sukses maupun error
       setIsProcessing(false);
     }
   };
@@ -336,9 +331,10 @@ export default function KamarPenyewaPage() {
             </Button>
             
             {isUbahPenghuniDisabled && (
-              <p className="text-xs text-orange-500 mt-2 flex items-start gap-1">
+              <p className="text-xs text-orange-500 mt-3 flex items-start gap-1">
                 <Info size={14} className="shrink-0 mt-0.5" /> 
-                Perubahan penghuni hanya dapat dilakukan 1 kali dalam 30 hari.
+                Perubahan penghuni hanya dapat dilakukan 1 kali dalam 30 hari. 
+                (Terakhir diubah: {new Date(reservasi.terakhir_ubah_penghuni).toLocaleDateString("id-ID")})
               </p>
             )}
           </div>
