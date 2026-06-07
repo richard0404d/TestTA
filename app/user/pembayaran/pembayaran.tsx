@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation"; // TAMBAHKAN IMPORT INI
+import { useRouter } from "next/navigation";
 import { CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 declare global {
@@ -17,7 +17,7 @@ export default function PembayaranPage() {
   // SUPABASE & ROUTER
   // ============================================
   const supabase = createClient();
-  const router = useRouter(); // INISIALISASI ROUTER
+  const router = useRouter();
 
   // ============================================
   // STATE
@@ -36,7 +36,7 @@ export default function PembayaranPage() {
   const [toast, setToast] = useState({
     show: false,
     message: "",
-    type: "success", // 'success' | 'error'
+    type: "success", 
   });
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -100,7 +100,7 @@ export default function PembayaranPage() {
         .eq("status_tagihan", "Belum Dibayar")
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle(); // PERBAIKAN: Menggunakan maybeSingle agar tidak error 406 jika tagihan kosong
 
       if (!tagihanError) {
         setTagihan(tagihanData);
@@ -161,43 +161,18 @@ export default function PembayaranPage() {
         onSuccess: async function (result: any) {
           console.log("SUCCESS", result);
         
-          // 1. Kirim Email Notifikasi Pembayaran Berhasil
-          try {
-            const emailResponse = await fetch("/api/send-pembayaran-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                emailPenyewa: penyewa.email_penyewa, 
-                idKamar: tagihan.sewa?.kamar?.id_kamar,
-                tanggalPembayaran: new Date().toLocaleDateString("id-ID"), 
-                totalPembayaran: tagihan.total_tagihan,
-                status: "Pembayaran Berhasil", 
-              }),
-            });
-
-            const emailData = await emailResponse.json();
-
-            if (!emailResponse.ok) {
-              console.error("API Error kirim email:", emailData.error);
-            } else {
-              console.log("Email berhasil dikirim!");
-            }
-          } catch (emailError) {
-            console.error("Gagal memanggil API email:", emailError);
-          }
-
-          showToast("Pembayaran berhasil", "success");
+          // PERBAIKAN: Logika kirim email dan update DB dihapus dari sini.
+          // Semua sudah diurus secara otomatis oleh Webhook Midtrans di server.
+          showToast("Pembayaran berhasil diproses!", "success");
           
-          // REFRESH HALAMAN SECARA HALUS
+          // Beri waktu 3 detik agar Webhook selesai bekerja sebelum me-refresh halaman
           setTimeout(() => {
-            router.refresh(); // Me-refresh data server komponen
-            router.push("/user/pembayaran"); // Memastikan ada di url yang benar
-            
-            // Opsional: fetch ulang data secara manual jika state tidak ter-update dari router.refresh()
+            router.refresh(); 
+            router.push("/user/pembayaran"); 
             setTagihan(null); 
             getData(); 
             setProcessing(false);
-          }, 2000);
+          }, 3000);
         },
         onPending: () => {
           showToast("Menunggu pembayaran", "success");
