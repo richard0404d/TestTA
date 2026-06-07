@@ -1,19 +1,17 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
-// Hapus import useRouter dan Link karena sudah tidak dipakai lagi untuk Hard Redirect
 import { LogOut } from "lucide-react";
 
 export function LogoutButton() {
   const logout = async () => {
-    const supabase = createClient();
+    // 1. Bersihkan sisa-sisa data (seperti role) di browser lokal ini
+    localStorage.clear();
 
-    // 1. PERBAIKAN: Gunakan local scope agar perangkat lain tidak ikut ter-logout
-    await supabase.auth.signOut({ scope: 'local' });
+    // 2. Panggil API jalur belakang untuk menghapus Cookies di browser ini saja
+    await fetch("/api/auth/logout", { method: "POST" });
 
-    // 2. PERBAIKAN: Gunakan window.location.href untuk hard-redirect
-    // Ini memastikan seluruh sisa memori/cache di browser terhapus bersih
-    window.location.href = "/";
+    // 3. Hard Redirect: Memaksa browser muat ulang halaman dari awal
+    window.location.href = "/authentication/sign-in";
   };
 
   return (
