@@ -122,7 +122,6 @@ export default function PembayaranPage() {
         .limit(1)
         .maybeSingle(); 
 
-      // PERBAIKAN PENTING: Wajib setTagihan(null) jika data kosong agar layar otomatis berubah
       if (!tagihanError && tagihanData) {
         setTagihan(tagihanData);
       } else {
@@ -255,7 +254,9 @@ export default function PembayaranPage() {
 
           <div className="border rounded-2xl p-6">
             <h2 className="text-xl font-semibold mb-6">Detail Tagihan</h2>
-            {tagihan ? (
+            
+            {/* PERBAIKAN DI SINI: Cek apakah ID tagihan sudah tercatat di histori pembayaran */}
+            {tagihan && !histories.some(h => h.id_tagihan === tagihan.id_tagihan) ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b pb-4">
                   <span className="text-gray-500">Total Pembayaran</span>

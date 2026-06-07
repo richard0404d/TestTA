@@ -77,8 +77,7 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       // ============================================
-      // LOGIKA UTAMA: INPUT DATA & KIRIM EMAIL
-      // (Hanya dijalankan jika pembayaran belum pernah tercatat)
+      // LOGIKA UTAMA: UPDATE SELURUH DATABASE DULU
       // ============================================
       if (!pembayaranExist) {
         
@@ -91,7 +90,39 @@ export async function POST(req: Request) {
           },
         ]);
 
-        // B. LOGIKA KIRIM EMAIL VIA BREVO
+        // B. UPDATE STATUS TAGIHAN TERKAIT MENJADI 'LUNAS'
+        await supabase
+          .from("tagihan")
+          .update({ status_tagihan: "Lunas" })
+          .eq("id_tagihan", tagihan.id_tagihan);
+
+        // C. UPDATE STATUS & TANGGAL BERAKHIR SEWA
+        await supabase
+          .from("sewa")
+          .update({
+            status_sewa: "Aktif",
+            tanggal_berakhir_sewa: tanggalBerakhir,
+          })
+          .eq("id_sewa", tagihan.id_sewa);
+
+        // D. UPDATE STATUS RESERVASI JIKA BARU PERTAMA KALI MASUK
+        if (sewa.status_sewa === "Menunggu Pembayaran") {
+          await supabase
+            .from("reservasi")
+            .update({ status_reservasi: "Berhasil" })
+            .eq("id_reservasi", sewa.id_reservasi);
+        }
+
+        // E. UPDATE STATUS KAMAR MENJADI 'DITEMPATI'
+        await supabase
+          .from("kamar")
+          .update({ status_kamar: "Ditempati" })
+          .eq("id_kamar", sewa.id_kamar);
+
+
+        // ============================================
+        // LOGIKA KIRIM EMAIL (DIJALANKAN PALING AKHIR)
+        // ============================================
         if (penyewa && penyewa.email_penyewa) {
           try {
             const sendEmail = async (to: string, subject: string, html: string) => {
@@ -105,7 +136,7 @@ export async function POST(req: Request) {
                 body: JSON.stringify({
                   sender: {
                     name: "Kos 75",
-                    email: "rumahkos2an@gmail.com", // Email pengirim yang sudah diverifikasi di Brevo
+                    email: "rumahkos2an@gmail.com",
                   },
                   to: [{ email: to }],
                   subject: subject,
@@ -119,7 +150,6 @@ export async function POST(req: Request) {
               }
             };
 
-            // Template Email Untuk Penyewa
             const htmlPenyewa = `
               <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
                 <h2 style="color: #1c3163;">Konfirmasi Pembayaran Kos 75</h2>
@@ -136,7 +166,6 @@ export async function POST(req: Request) {
               </div>
             `;
 
-            // Template Email Untuk Admin
             const htmlAdmin = `
               <div style="font-family: Arial; padding: 20px;">
                 <h2>Notifikasi Pembayaran Baru (M-Web)</h2>
@@ -148,49 +177,22 @@ export async function POST(req: Request) {
               </div>
             `;
 
-            // Eksekusi Kirim Email Paralel
-            await Promise.all([
+            // Eksekusi Kirim Email Paralel tanpa await (Fire and Forget)
+            Promise.all([
               sendEmail(penyewa.email_penyewa, "Konfirmasi Pembayaran Kos 75 - Berhasil", htmlPenyewa),
               sendEmail("rumahkos2an@gmail.com", `Notifikasi Pembayaran Baru - Kamar ${sewa.id_kamar}`, htmlAdmin)
-            ]);
+            ]).catch(err => console.error("Error saat Promise.all email:", err));
 
-            console.log("EMAIL PEMBAYARAN BERHASIL DIKIRIM LEWAT WEBHOOK");
+            console.log("PROSES KIRIM EMAIL DIMULAI DI BACKGROUND");
           } catch (emailErr) {
             console.error("Gagal mengirim email di Webhook:", emailErr);
           }
         }
       }
 
-      // 4. UPDATE STATUS TAGIHAN TERKAIT MENJADI 'LUNAS'
-      await supabase
-        .from("tagihan")
-        .update({ status_tagihan: "Lunas" })
-        .eq("id_tagihan", tagihan.id_tagihan);
-
-      // 5. UPDATE STATUS & TANGGAL BERAKHIR SEWA
-      await supabase
-        .from("sewa")
-        .update({
-          status_sewa: "Aktif",
-          tanggal_berakhir_sewa: tanggalBerakhir,
-        })
-        .eq("id_sewa", tagihan.id_sewa);
-
-      // 6. UPDATE STATUS RESERVASI JIKA BARU PERTAMA KALI MASUK
-      if (sewa.status_sewa === "Menunggu Pembayaran") {
-        await supabase
-          .from("reservasi")
-          .update({ status_reservasi: "Berhasil" })
-          .eq("id_reservasi", sewa.id_reservasi);
-      }
-
-      // 7. UPDATE STATUS KAMAR MENJADI 'DITEMPATI'
-      await supabase
-        .from("kamar")
-        .update({ status_kamar: "Ditempati" })
-        .eq("id_kamar", sewa.id_kamar);
     }
 
+    // Mengirim response secepat mungkin setelah DB terupdate (0.1 detik)
     return NextResponse.json({ success: true });
 
   } catch (error) {
