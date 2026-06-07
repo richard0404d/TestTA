@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+// 1. Impor AuthListener yang sudah dibuat sebelumnya
+import AuthListener from "@/components/AuthListener"; 
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +29,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* 2. Bungkus children dengan AuthListener */}
+        <AuthListener>
+          {children}
+        </AuthListener>
+      </body>
     </html>
   );
 }
