@@ -22,6 +22,10 @@ export default function Reservasi() {
   const [hargaTotal, setHargaTotal] = useState(0);
   const [fasilitas, setFasilitas] = useState<any[]>([]);
 
+  // NEW: State untuk Persetujuan & Modal Aturan Kos
+  const [isAgreed, setIsAgreed] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+
   // State untuk Toast Notification
   const [toast, setToast] = useState({
     show: false,
@@ -265,6 +269,9 @@ export default function Reservasi() {
       if (!form.kamar) return showToast("Pilih kamar terlebih dahulu!", "error");
       if (!form.telepon) return showToast("Nomor telepon tidak boleh kosong!", "error");
       if (!form.tanggal) return showToast("Tanggal masuk wajib diisi!", "error");
+      
+      // NEW: Validasi Persetujuan Aturan Kos
+      if (!isAgreed) return showToast("Anda wajib menyetujui Syarat dan Ketentuan Kos terlebih dahulu!", "error");
 
       if (form.penghuni === "2") {
         if (!form.namaPenghuni2 || form.namaPenghuni2.trim() === "") return showToast("Nama penghuni kedua wajib diisi!", "error");
@@ -318,22 +325,21 @@ export default function Reservasi() {
       }
 
       // ============================================
-      // LOGIKA UTAMA: ATOMIC CLAMP (KUNCI KAMAR BERDASARKAN STATUS)
+      // LOGIKA UTAMA: ATOMIC CLAMP
       // ============================================
       const { data: claimKamar, error: errClaim } = await supabase
         .from("kamar")
         .update({ status_kamar: "Direservasi" })
         .eq("id_kamar", Number(form.kamar))
-        .eq("status_kamar", "Tersedia") // Kamar mutlak harus berstatus Tersedia saat baris perintah ini dieksekusi
+        .eq("status_kamar", "Tersedia") 
         .select();
 
       if (errClaim || !claimKamar || claimKamar.length === 0) {
         setLoading(false);
-        getKamar(); // Muat ulang daftar kamar karena kamar pilihan pengguna sudah diambil orang lain
+        getKamar(); 
         return showToast("Gagal! Kamar ini baru saja direservasi oleh orang lain.", "error");
       }
 
-      // Catat kamar yang berhasil dikunci untuk penanganan jika terjadi kegagalan sistem di bawah
       roomClaimedId = Number(form.kamar);
 
       // --- PROSES INSERT DATA RESERVASI ---
@@ -394,7 +400,7 @@ export default function Reservasi() {
 
       if (tagihanError) throw new Error("Gagal menerbitkan lembar tagihan: " + tagihanError.message);
 
-      // --- KIRIM EMAIL KONFIRMASI (BACKGROUND PROCESS) ---
+      // --- KIRIM EMAIL KONFIRMASI ---
       fetch("/api/send-reservasi-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -419,11 +425,6 @@ export default function Reservasi() {
       showToast(error.message || "Terjadi kesalahan sistem internal.", "error");
       setLoading(false);
 
-      // ============================================
-      // ANTI ERROR HANG: LOGIKA ROLLBACK OTOMATIS
-      // ============================================
-      // Jika proses di tengah jalan gagal (misal server down saat membuat tagihan), 
-      // kembalikan status kamar ke posisi semula agar tidak terkunci/gantung selamanya.
       if (roomClaimedId) {
         await supabase
           .from("kamar")
@@ -433,7 +434,6 @@ export default function Reservasi() {
     }
   };
 
-  // Sinkronisasi Batas Tanggal Input Kalender
   const today = new Date();
   const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split("T")[0];
   const maxDateLimit = new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000 - today.getTimezoneOffset() * 60000).toISOString().split("T")[0];
@@ -627,6 +627,28 @@ export default function Reservasi() {
           </h2>
         </div>
 
+        {/* CHECKBOX SYARAT & KETENTUAN */}
+        <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-xl border border-gray-200">
+          <input
+            type="checkbox"
+            id="terms"
+            checked={isAgreed}
+            onChange={(e) => setIsAgreed(e.target.checked)}
+            className="mt-1 w-5 h-5 text-[#1c3163] rounded border-gray-300 focus:ring-[#1c3163] cursor-pointer"
+          />
+          <label htmlFor="terms" className="text-sm text-gray-700 leading-relaxed cursor-pointer">
+            Saya telah membaca dan menyetujui{" "}
+            <button
+              type="button"
+              onClick={() => setShowTerms(true)}
+              className="text-blue-600 font-semibold hover:underline"
+            >
+              Syarat, Ketentuan, dan Aturan Kos
+            </button>
+            .
+          </label>
+        </div>
+
         {/* SUBMIT ACTION BUTTON */}
         <Button
           type="submit"
@@ -653,6 +675,70 @@ export default function Reservasi() {
           <p className="text-sm text-gray-500 text-center py-4">Memuat data fasilitas...</p>
         )}
       </div>
+
+      {/* MODAL SYARAT & KETENTUAN */}
+      {showTerms && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="p-5 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-lg text-[#1c3163]">Syarat & Ketentuan Kos 75</h3>
+              <button onClick={() => setShowTerms(false)} className="text-gray-500 hover:text-red-500 transition">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-5 text-gray-700 text-sm leading-relaxed">
+              <section>
+                <h4 className="font-bold text-gray-900 mb-2">1. Pemesanan & Durasi Sewa</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Pemesanan kamar melalui sistem dianggap sah setelah pembayaran diverifikasi oleh admin.</li>
+                  <li>Durasi sewa kos adalah <b>minimal 1 (satu) bulan</b>.</li>
+                  <li>Uang yang sudah dibayarkan tidak dapat dikembalikan *(Non-refundable)* dengan alasan apapun.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 mb-2">2. Tagihan & Perpanjangan</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Tagihan bulan berikutnya akan otomatis diterbitkan oleh sistem 10 hari sebelum masa jatuh tempo.</li>
+                  <li>Batas waktu pembayaran perpanjangan adalah selambat-lambatnya pada tanggal masa sewa berakhir.</li>
+                  <li>Keterlambatan pembayaran tanpa konfirmasi kepada pengelola dapat berakibat pada pemutusan hak sewa kamar secara sepihak.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 mb-2">3. Pembatalan & Pengosongan Kamar</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Jika penyewa ingin berhenti menyewa, harap menginformasikan kepada pengelola selambat-lambatnya 7 hari sebelum masa sewa habis.</li>
+                  <li>Kamar yang ditinggalkan harus dalam keadaan bersih seperti sedia kala tanpa adanya kerusakan fasilitas.</li>
+                </ul>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-gray-900 mb-2">4. Tata Tertib Kos</h4>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Penyewa diwajibkan menjaga kebersihan, ketertiban, dan ketenangan lingkungan kos.</li>
+                  <li>Dilarang membawa atau menggunakan obat-obatan terlarang (narkoba), minuman keras, dan berjudi di dalam area kos.</li>
+                  <li>Pengelola berhak melakukan tindakan tegas berupa pengusiran apabila penyewa terbukti melanggar tata tertib berat.</li>
+                </ul>
+              </section>
+            </div>
+
+            <div className="p-5 border-t bg-gray-50 flex gap-3">
+              <Button 
+                type="button" 
+                onClick={() => {
+                  setIsAgreed(true);
+                  setShowTerms(false);
+                }} 
+                className="w-full bg-[#1c3163] hover:bg-[#15254b] text-white"
+              >
+                Saya Mengerti & Setuju
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
