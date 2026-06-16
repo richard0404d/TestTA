@@ -531,6 +531,19 @@ export default function Reservasi() {
           </div>
         </div>
 
+        {/* DENAH KAMAR */}
+        <div>
+          <label className="font-medium">Denah Kamar Kos</label>
+          <p className="text-sm text-gray-500 mb-2">Silakan lihat denah di bawah ini untuk mengetahui posisi kamar.</p>
+          <div className="w-full rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center p-2 mt-2">
+            <img
+              src="/images/DenahKamar.png"
+              alt="Denah Kamar Kos"
+              className="w-full h-auto object-contain max-h-[300px] rounded-md"
+            />
+          </div>
+        </div>
+
         {/* SELECT KAMAR */}
         <div>
           <label className="font-medium">Pilih Kamar</label>
