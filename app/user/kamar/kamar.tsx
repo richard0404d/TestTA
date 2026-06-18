@@ -11,6 +11,11 @@ export default function KamarPenyewaPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  
+  // NEW: State untuk menampung banyak sewa/kamar aktif
+  const [sewaList, setSewaList] = useState<any[]>([]);
+  const [selectedSewaId, setSelectedSewaId] = useState<string>("");
+
   const [sewa, setSewa] = useState<any>(null);
   const [reservasi, setReservasi] = useState<any>(null);
   const [kamar, setKamar] = useState<any>(null);
@@ -43,83 +48,103 @@ export default function KamarPenyewaPage() {
   };
 
   // ============================================
-  // LOAD DATA KAMAR AKTIF
+  // LOAD DAFTAR KAMAR AKTIF (Langkah 1)
   // ============================================
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  const fetchSewaList = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-        // 1. Get Sewa Aktif
-        const { data: sewaData } = await supabase
-          .from("sewa")
-          .select("*")
-          .eq("id_penyewa", user.id)
-          .eq("status_sewa", "Aktif")
-          .single();
+      // Mengambil semua sewa aktif tanpa .single()
+      const { data: sewaData } = await supabase
+        .from("sewa")
+        .select("*")
+        .eq("id_penyewa", user.id)
+        .eq("status_sewa", "Aktif");
 
-        if (!sewaData) {
-          setLoading(false);
-          return; // Tidak ada kamar aktif
+      setSewaList(sewaData || []);
+
+      if (sewaData && sewaData.length > 0) {
+        // Jika belum ada yang dipilih, pilih kamar pertama secara default
+        if (!selectedSewaId) {
+          setSelectedSewaId(String(sewaData[0].id_sewa));
         }
-        setSewa(sewaData);
-
-        // 2. Get Data Reservasi (Untuk info penghuni)
-        const { data: reservasiData } = await supabase
-          .from("reservasi")
-          .select("*")
-          .eq("id_reservasi", sewaData.id_reservasi)
-          .single();
-        
-        setReservasi(reservasiData);
-        setFormPenghuni({
-          jumlah: reservasiData.jumlah_penghuni || 1,
-          nama_penghuni2: reservasiData.nama_penghuni2 || "",
-          nomor_telepon2: reservasiData.nomor_telepon2 || "",
-        });
-
-        // 3. Get Data Kamar (Untuk harga)
-        const { data: kamarData } = await supabase
-          .from("kamar")
-          .select("*")
-          .eq("id_kamar", sewaData.id_kamar)
-          .single();
-        setKamar(kamarData);
-
-        // 4. Get Fasilitas Kamar
-        const { data: fasilitasData } = await supabase
-          .from("detail_fasilitas_kamar")
-          .select("kondisi_fasilitas, fasilitas(nama_fasilitas)")
-          .eq("id_kamar", sewaData.id_kamar);
-        
-        setFasilitas(fasilitasData || []);
-
-      } catch (error) {
-        console.error("Gagal memuat data:", error);
-      } finally {
-        setLoading(false);
+      } else {
+        setSewa(null);
       }
-    };
+    } catch (error) {
+      console.error("Gagal memuat daftar sewa:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
+  useEffect(() => {
+    fetchSewaList();
   }, [supabase]);
 
   // ============================================
-  // LOGIC: BATAS WAKTU UBAH PENGHUNI (1 BULAN VIA DATABASE)
+  // LOAD DETAIL KAMAR YANG DIPILIH (Langkah 2)
+  // ============================================
+  useEffect(() => {
+    if (!selectedSewaId || sewaList.length === 0) return;
+
+    const fetchDetailKamarTerpilih = async () => {
+      try {
+        const currentSewa = sewaList.find((s) => String(s.id_sewa) === selectedSewaId);
+        if (!currentSewa) return;
+
+        setSewa(currentSewa);
+
+        // Get Data Reservasi terkait kamar ini
+        const { data: reservasiData } = await supabase
+          .from("reservasi")
+          .select("*")
+          .eq("id_reservasi", currentSewa.id_reservasi)
+          .single();
+        
+        if (reservasiData) {
+          setReservasi(reservasiData);
+          setFormPenghuni({
+            jumlah: reservasiData.jumlah_penghuni || 1,
+            nama_penghuni2: reservasiData.nama_penghuni2 || "",
+            nomor_telepon2: reservasiData.nomor_telepon2 || "",
+          });
+        }
+
+        // Get Data Detail Kamar (Harga)
+        const { data: kamarData } = await supabase
+          .from("kamar")
+          .select("*")
+          .eq("id_kamar", currentSewa.id_kamar)
+          .single();
+        setKamar(kamarData);
+
+        // Get Fasilitas Kamar
+        const { data: fasilitasData } = await supabase
+          .from("detail_fasilitas_kamar")
+          .select("kondisi_fasilitas, fasilitas(nama_fasilitas)")
+          .eq("id_kamar", currentSewa.id_kamar);
+        
+        setFasilitas(fasilitasData || []);
+      } catch (error) {
+        console.error("Gagal memuat detail kamar:", error);
+      }
+    };
+
+    fetchDetailKamarTerpilih();
+  }, [selectedSewaId, sewaList]);
+
+  // ============================================
+  // LOGIKA: BATAS WAKTU UBAH PENGHUNI
   // ============================================
   const cekBisaUbahPenghuni = () => {
     if (!reservasi) return false;
-    
-    // Jika belum pernah diubah (NULL), maka boleh diubah
     if (!reservasi.terakhir_ubah_penghuni) return true; 
 
-    // Hitung selisih hari dari database
     const lastChange = new Date(reservasi.terakhir_ubah_penghuni).getTime();
     const daysPassed = (Date.now() - lastChange) / (1000 * 60 * 60 * 24);
-    
-    // Jika sudah lewat atau sama dengan 30 hari, kembalikan true (bisa diubah)
     return daysPassed >= 30;
   };
 
@@ -140,7 +165,7 @@ export default function KamarPenyewaPage() {
         jumlah_penghuni: formPenghuni.jumlah,
         nama_penghuni2: formPenghuni.jumlah === 2 ? formPenghuni.nama_penghuni2 : null,
         nomor_telepon2: formPenghuni.jumlah === 2 ? formPenghuni.nomor_telepon2 : null,
-        terakhir_ubah_penghuni: new Date().toISOString(), // Simpan waktu saat ini ke database
+        terakhir_ubah_penghuni: new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -166,21 +191,18 @@ export default function KamarPenyewaPage() {
   const handleKeluarKos = async () => {
     setIsProcessing(true);
     try {
-      // 1. Update Status Sewa
       const { error: errSewa } = await supabase
         .from("sewa")
         .update({ status_sewa: "Berakhir" })
         .eq("id_sewa", sewa.id_sewa);
       if (errSewa) throw errSewa;
 
-      // 2. Update Status Kamar
       const { error: errKamar } = await supabase
         .from("kamar")
         .update({ status_kamar: "Tersedia" })
         .eq("id_kamar", sewa.id_kamar);
       if (errKamar) throw errKamar;
 
-      // 3. Update Status Reservasi
       const { error: errReservasi } = await supabase
         .from("reservasi")
         .update({ status_reservasi: "Selesai" })
@@ -188,11 +210,12 @@ export default function KamarPenyewaPage() {
       if (errReservasi) throw errReservasi;
 
       showToast("Anda telah berhasil menyelesaikan masa sewa kos.", "success");
-      
       setShowModalKeluar(false);
 
+      // Memuat ulang daftar kamar aktif yang tersisa
       setTimeout(() => {
-        setSewa(null); 
+        setSelectedSewaId("");
+        fetchSewaList();
       }, 2000);
 
     } catch (err: any) {
@@ -202,16 +225,14 @@ export default function KamarPenyewaPage() {
     }
   };
 
-  // ============================================
-  // RENDER PENGKONDISIAN HARGA
-  // ============================================
+  // Kalkulasi Harga
   const hargaTotal = kamar && reservasi 
     ? Number(kamar.harga_sewa_kamar) + (reservasi.jumlah_penghuni === 2 ? Number(kamar.harga_tambahan_penyewa) : 0)
     : 0;
 
   if (loading) return <div className="p-8 text-center text-gray-500 mt-20">Memuat data kamar...</div>;
 
-  if (!sewa) return (
+  if (sewaList.length === 0 || !sewa) return (
     <div className="max-w-2xl mx-auto p-6 md:pt-20 text-center space-y-4">
       <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <BedDouble size={40} className="text-gray-400" />
@@ -233,7 +254,27 @@ export default function KamarPenyewaPage() {
         </div>
       )}
 
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Kamar Saya</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
+        <h1 className="text-3xl font-bold text-gray-800">Kamar Saya</h1>
+        
+        {/* DROPDOWN PILIHAN KAMAR (Hanya tampil jika kamar lebih dari 1) */}
+        {sewaList.length > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-500 whitespace-nowrap">Pilih Kamar:</span>
+            <select
+              value={selectedSewaId}
+              onChange={(e) => setSelectedSewaId(e.target.value)}
+              className="border border-gray-300 rounded-xl px-4 py-2 bg-white text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-100 transition"
+            >
+              {sewaList.map((item) => (
+                <option key={item.id_sewa} value={item.id_sewa}>
+                  Kamar {item.id_kamar}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
@@ -255,13 +296,13 @@ export default function KamarPenyewaPage() {
               <div>
                 <p className="text-sm text-gray-500">Tanggal Masuk</p>
                 <p className="font-semibold text-gray-800 mt-1">
-                  {new Date(reservasi.tanggal_masuk).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {reservasi?.tanggal_masuk ? new Date(reservasi.tanggal_masuk).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Berakhir Pada</p>
                 <p className="font-semibold text-gray-800 mt-1">
-                  {new Date(sewa.tanggal_berakhir_sewa).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {sewa.tanggal_berakhir_sewa ? new Date(sewa.tanggal_berakhir_sewa).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
                 </p>
               </div>
             </div>
@@ -303,24 +344,26 @@ export default function KamarPenyewaPage() {
               <p className="text-xs text-blue-600/60 mt-1">*(Sudah menyesuaikan jumlah penghuni)</p>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-gray-500">Jumlah Penghuni</span>
-                <span className="font-bold text-gray-800">{reservasi.jumlah_penghuni} Orang</span>
+            {reservasi && (
+              <div className="space-y-3">
+                <div className="flex justify-between border-b pb-2">
+                  <span className="text-gray-500">Jumlah Penghuni</span>
+                  <span className="font-bold text-gray-800">{reservasi.jumlah_penghuni} Orang</span>
+                </div>
+                {reservasi.jumlah_penghuni === 2 && (
+                  <>
+                    <div className="flex justify-between border-b pb-2">
+                      <span className="text-gray-500">Penghuni 2</span>
+                      <span className="font-semibold text-gray-800">{reservasi.nama_penghuni2}</span>
+                    </div>
+                    <div className="flex justify-between pb-2">
+                      <span className="text-gray-500">No. Telepon 2</span>
+                      <span className="font-semibold text-gray-800">{reservasi.nomor_telepon2}</span>
+                    </div>
+                  </>
+                )}
               </div>
-              {reservasi.jumlah_penghuni === 2 && (
-                <>
-                  <div className="flex justify-between border-b pb-2">
-                    <span className="text-gray-500">Penghuni 2</span>
-                    <span className="font-semibold text-gray-800">{reservasi.nama_penghuni2}</span>
-                  </div>
-                  <div className="flex justify-between pb-2">
-                    <span className="text-gray-500">No. Telepon 2</span>
-                    <span className="font-semibold text-gray-800">{reservasi.nomor_telepon2}</span>
-                  </div>
-                </>
-              )}
-            </div>
+            )}
 
             <Button 
               onClick={() => setShowModalPenghuni(true)} 
@@ -330,11 +373,11 @@ export default function KamarPenyewaPage() {
               Ubah Penghuni
             </Button>
             
-            {isUbahPenghuniDisabled && (
+            {isUbahPenghuniDisabled && reservasi && (
               <p className="text-xs text-orange-500 mt-3 flex items-start gap-1">
                 <Info size={14} className="shrink-0 mt-0.5" /> 
                 Perubahan penghuni hanya dapat dilakukan 1 kali dalam 30 hari. 
-                (Terakhir diubah: {new Date(reservasi.terakhir_ubah_penghuni).toLocaleDateString("id-ID")})
+                (Terakhir diubah: {reservasi.terakhir_ubah_penghuni ? new Date(reservasi.terakhir_ubah_penghuni).toLocaleDateString("id-ID") : "-"})
               </p>
             )}
           </div>
@@ -428,7 +471,7 @@ export default function KamarPenyewaPage() {
               <AlertCircle size={32} />
             </div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">Yakin Ingin Keluar Kos?</h3>
-            <p className="text-gray-500 text-sm mb-6">Masa sewa kamar {sewa.id_kamar} akan dihentikan dan kamar ini akan tersedia untuk penyewa lain.</p>
+            <p className="text-gray-500 text-sm mb-6">Masa sewa kamar {sewa?.id_kamar} akan dihentikan dan kamar ini akan tersedia untuk penyewa lain.</p>
             
             <div className="flex gap-3">
               <Button onClick={() => setShowModalKeluar(false)} variant="outline" className="flex-1">Batal</Button>
