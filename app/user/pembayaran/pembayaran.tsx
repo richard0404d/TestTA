@@ -13,57 +13,39 @@ declare global {
 }
 
 export default function PembayaranPage() {
-  // ============================================
-  // SUPABASE & ROUTER
-  // ============================================
   const supabase = createClient();
   const router = useRouter();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [tagihan, setTagihan] = useState<any>(null);
+  
+  const [semuaTagihan, setSemuaTagihan] = useState<any[]>([]);
+  const [selectedTagihanId, setSelectedTagihanId] = useState<string>(""); 
+
   const [histories, setHistories] = useState<any[]>([]);
   const [penyewa, setPenyewa] = useState<any>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  const [toast, setToast] = useState({
-    show: false,
-    message: "",
-    type: "success", 
-  });
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: "", type: "success" });
-    }, 3000);
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
-  // ============================================
-  // LOAD MIDTRANS SCRIPT
-  // ============================================
   useEffect(() => {
     if (document.getElementById("midtrans-script")) return;
-
     const script = document.createElement("script");
     script.id = "midtrans-script";
     script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
     script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!);
     script.async = true;
-
     document.body.appendChild(script);
   }, []);
 
-  // ============================================
-  // GET DATA & TANGKAP REDIRECT E-WALLET
-  // ============================================
   useEffect(() => {
-    // Mengecek URL jika user baru saja dialihkan kembali dari E-Wallet (DANA/Gopay)
     const urlParams = new URLSearchParams(window.location.search);
     const txStatus = urlParams.get("transaction_status");
 
@@ -71,25 +53,22 @@ export default function PembayaranPage() {
       showToast("Memverifikasi pembayaran Anda...", "success");
       setProcessing(true);
       
-      // AUTO POLLING: Tarik data 4 kali dengan jeda 3 detik
       let attempts = 0;
-      getData(); // Tarikan pertama
+      getData();
 
       const interval = setInterval(() => {
         attempts++;
-        getData(); // Tarikan berikutnya
+        getData(); 
         
         if (attempts >= 4) {
           clearInterval(interval);
           setProcessing(false);
-          // Bersihkan URL dari parameter Midtrans agar rapi
           router.replace("/user/pembayaran");
         }
       }, 3000);
 
       return () => clearInterval(interval);
     } else {
-      // Jika halaman dibuka normal, cukup tarik data 1x
       getData();
     }
   }, []);
@@ -106,29 +85,9 @@ export default function PembayaranPage() {
         .eq("id_penyewa", user.id)
         .neq("status_sewa", "Berakhir");
 
-      const { data: penyewaData } = await supabase
-        .from("penyewa")
-        .select("*")
-        .eq("id_penyewa", user.id)
-        .single();
+      const { data: penyewaData } = await supabase.from("penyewa").select("*").eq("id_penyewa", user.id).single();
       setPenyewa(penyewaData);
 
-      const { data: tagihanData, error: tagihanError } = await supabase
-        .from("tagihan")
-        .select(`*, sewa (*, kamar (*))`)
-        .in("id_sewa", sewaUser?.map((item) => item.id_sewa) || [])
-        .eq("status_tagihan", "Belum Dibayar")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(); 
-
-      if (!tagihanError && tagihanData) {
-        setTagihan(tagihanData);
-      } else {
-        setTagihan(null); 
-      }
-
-      // Ambil Histori Pembayaran
       const { data: pembayaranData } = await supabase
         .from("pembayaran")
         .select(`*, tagihan (*, sewa (*))`)
@@ -139,6 +98,39 @@ export default function PembayaranPage() {
       );
       setHistories(filteredHistory);
 
+      const { data: tagihanData, error: tagihanError } = await supabase
+        .from("tagihan")
+        .select(`*, sewa (*, kamar (*))`)
+        .in("id_sewa", sewaUser?.map((item) => item.id_sewa) || [])
+        .eq("status_tagihan", "Belum Dibayar")
+        .order("created_at", { ascending: false });
+
+      if (!tagihanError && tagihanData && tagihanData.length > 0) {
+        const tagihanBelumLunas = tagihanData.filter(t => 
+          !filteredHistory.some(h => h.id_tagihan === t.id_tagihan && h.status_pembayaran === "Berhasil")
+        );
+        
+        setSemuaTagihan(tagihanBelumLunas);
+        
+        // ============================================
+        // PERBAIKAN: DETEKSI URL PARAMETER
+        // ============================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const tagihanIdDariUrl = urlParams.get("tagihan_id");
+
+        if (tagihanBelumLunas.length > 0) {
+          if (tagihanIdDariUrl && tagihanBelumLunas.some(t => String(t.id_tagihan) === tagihanIdDariUrl)) {
+            // Jika ada parameter dari halaman tagihan, pilih otomatis
+            setSelectedTagihanId(tagihanIdDariUrl);
+          } else if (!selectedTagihanId) {
+            // Jika tidak ada parameter, pilih yang pertama di array
+            setSelectedTagihanId(String(tagihanBelumLunas[0].id_tagihan));
+          }
+        }
+      } else {
+        setSemuaTagihan([]); 
+      }
+
     } catch (error) {
       console.log(error);
     } finally {
@@ -146,17 +138,15 @@ export default function PembayaranPage() {
     }
   };
 
-  // ============================================
-  // HANDLE BAYAR
-  // ============================================
   const handleBayar = async () => {
     if (processing) return;
 
     try {
       setProcessing(true);
+      const tagihanAktif = semuaTagihan.find(t => String(t.id_tagihan) === selectedTagihanId);
 
-      if (!tagihan || !penyewa) {
-        showToast("Tagihan tidak ditemukan", "error");
+      if (!tagihanAktif || !penyewa) {
+        showToast("Pilih tagihan yang ingin dibayar terlebih dahulu", "error");
         setProcessing(false);
         return;
       }
@@ -165,8 +155,8 @@ export default function PembayaranPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          order_id: `TAGIHAN-${tagihan.id_tagihan}-${Date.now()}`,
-          gross_amount: Number(tagihan.total_tagihan),
+          order_id: `TAGIHAN-${tagihanAktif.id_tagihan}-${Date.now()}`,
+          gross_amount: Number(tagihanAktif.total_tagihan),
           first_name: penyewa.nama_penyewa,
           email: penyewa.email_penyewa,
         }),
@@ -182,15 +172,11 @@ export default function PembayaranPage() {
 
       window.snap.pay(data.token, {
         onSuccess: function (result: any) {
-          console.log("SUCCESS", result);
           showToast("Pembayaran berhasil! Memverifikasi...", "success");
-          
-          // AUTO POLLING UNTUK POPUP VISA/QRIS
           let attempts = 0;
           const interval = setInterval(async () => {
             attempts++;
-            await getData(); // Minta data terbaru dari Supabase
-
+            await getData();
             if (attempts >= 4) {
               clearInterval(interval);
               setProcessing(false);
@@ -199,18 +185,10 @@ export default function PembayaranPage() {
         },
         onPending: () => {
           showToast("Menunggu pembayaran...", "success");
-          setTimeout(() => {
-            router.refresh();
-            setProcessing(false);
-          }, 2000);
+          setTimeout(() => { router.refresh(); setProcessing(false); }, 2000);
         },
-        onError: () => {
-          showToast("Pembayaran gagal", "error");
-          setProcessing(false);
-        },
-        onClose: () => {
-          setProcessing(false);
-        },
+        onError: () => { showToast("Pembayaran gagal", "error"); setProcessing(false); },
+        onClose: () => { setProcessing(false); },
       });
     } catch (error: any) {
       showToast(error.message || "Terjadi kesalahan sistem", "error");
@@ -219,95 +197,136 @@ export default function PembayaranPage() {
   };
 
   const formatRupiah = (number: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(number);
+    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(number);
   };
 
-  // ============================================
-  // PAGINATION LOGIC
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentHistories = histories.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(histories.length / itemsPerPage);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-500">Memuat data pembayaran...</div>;
+
+  const selectedTagihanDetail = semuaTagihan.find(t => String(t.id_tagihan) === selectedTagihanId);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4 relative">
-      {/* TOAST */}
+    <div className="min-h-screen bg-gray-50/50 py-10 px-4 md:pt-28">
       {toast.show && (
-        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-          {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
-          <p className="font-semibold">{toast.message}</p>
+        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg ${toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"}`}>
+          {toast.type === "success" ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+          <p className="font-semibold text-sm">{toast.message}</p>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* LEFT */}
-        <div className="bg-white border rounded-2xl p-6 shadow-sm">
-          <h1 className="text-3xl font-bold mb-2">Pembayaran</h1>
-          <p className="text-sm text-gray-500 mb-6">Lakukan pembayaran tagihan kos</p>
-
-          <div className="border rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-6">Detail Tagihan</h2>
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 lg:p-8 shadow-sm h-fit">
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">Detail Tagihan</h2>
             
-            {/* PERBAIKAN DI SINI: Cek apakah ID tagihan sudah tercatat di histori pembayaran */}
-            {tagihan && !histories.some(h => h.id_tagihan === tagihan.id_tagihan) ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b pb-4">
-                  <span className="text-gray-500">Total Pembayaran</span>
-                  <span className="font-bold text-xl">{formatRupiah(tagihan.total_tagihan)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Nomor Kamar</span>
-                  <span className="font-medium">{tagihan.sewa?.kamar?.id_kamar}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Status</span>
-                  <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">{tagihan.status_tagihan}</span>
-                </div>
-                <div className="pt-6">
-                  <Button onClick={handleBayar} disabled={processing} className="w-full h-12 bg-[#2C5EBF] hover:bg-[#244ea0]">
-                    {processing ? "Memproses..." : "Bayar Sekarang"}
-                  </Button>
-                </div>
+          {semuaTagihan.length > 0 ? (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm text-gray-600 mb-2 font-medium">Pilih Tagihan Pembayaran</label>
+                <select 
+                  value={selectedTagihanId}
+                  onChange={(e) => setSelectedTagihanId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition"
+                >
+                  {semuaTagihan.map(tagihan => (
+                    <option key={tagihan.id_tagihan} value={tagihan.id_tagihan}>
+                      Kamar {tagihan.sewa?.kamar?.id_kamar} - Rp {tagihan.total_tagihan.toLocaleString("id-ID")}
+                    </option>
+                  ))}
+                </select>
               </div>
-            ) : <div className="text-center py-10 text-gray-400">Tidak ada tagihan aktif</div>}
-          </div>
+
+              <hr className="border-gray-100" />
+
+              {selectedTagihanDetail && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                    <span className="font-bold text-xl">Total Pembayaran</span>
+                    <span className="font-bold text-xl">{formatRupiah(selectedTagihanDetail.total_tagihan)}</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Nomor Kamar</span>
+                    <span className=" text-gray-800 px-3 py-1 rounded-md font-semibold">
+                      Kamar {selectedTagihanDetail.sewa?.kamar?.id_kamar}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Status Tagihan</span>
+                    <span className="bg-[#fef3c7] text-[#b45309] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                      {selectedTagihanDetail.status_tagihan}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Jatuh Tempo</span>
+                    <span className="text-red-500 font-medium">
+                      {new Date(selectedTagihanDetail.batas_pembayaran).toLocaleDateString("id-ID", { day: "numeric", month: "short", year:"numeric" })}
+                    </span>
+                  </div>
+
+                  <div className="pt-6">
+                    <Button onClick={handleBayar} disabled={processing} className="w-full h-12 text-base font-semibold bg-[#1e2b4d] hover:bg-[#15203b] transition-all rounded-lg">
+                      {processing ? "Memproses Gateway..." : "Bayar Tagihan Ini"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-12 flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                <CheckCircle className="text-green-500 opacity-80" size={32} />
+              </div>
+              <p className="text-gray-500 font-medium">Hore! Tidak ada tagihan aktif.</p>
+            </div>
+          )}
         </div>
 
-        {/* RIGHT (WITH PAGINATION) */}
-        <div className="bg-white border rounded-2xl p-6 shadow-sm flex flex-col">
-          <h1 className="text-3xl font-bold mb-6">Histori Pembayaran</h1>
+        <div className="bg-white border border-gray-200 rounded-xl p-6 lg:p-8 shadow-sm flex flex-col h-fit">
+          <h2 className="text-xl font-bold mb-6 text-gray-800">Histori Pembayaran</h2>
+          
           <div className="space-y-4 flex-grow">
             {currentHistories.length > 0 ? (
               currentHistories.map((item) => (
-                <div key={item.id_pembayaran} className="border rounded-2xl p-5 flex items-center justify-between">
+                <div key={item.id_pembayaran} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0 flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500">{new Date(item.tanggal_pembayaran).toLocaleDateString("id-ID")}</p>
-                    <p className="font-semibold mt-1">{formatRupiah(item.tagihan?.total_tagihan || 0)}</p>
+                    <p className="text-sm text-gray-500 mb-1">
+                      {new Date(item.tanggal_pembayaran).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-800">{formatRupiah(item.tagihan?.total_tagihan || 0)}</p>
+                      <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-gray-600 rounded">Kamar {item.tagihan?.sewa?.id_kamar}</span>
+                    </div>
                   </div>
-                  <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-medium">
-                    {item.status_pembayaran}
+                  
+                  <div>
+                    <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider ${
+                      item.status_pembayaran === "Berhasil" ? "bg-green-100 text-green-700" : 
+                      item.status_pembayaran === "Gagal" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {item.status_pembayaran}
+                    </span>
                   </div>
                 </div>
               ))
-            ) : <div className="text-center py-10 text-gray-400">Belum ada histori</div>}
+            ) : (
+              <div className="text-center py-10 text-gray-400 text-sm">Belum ada histori pembayaran</div>
+            )}
           </div>
 
-          {/* PAGINATION UI */}
           {histories.length > 0 && (
-            <div className="flex items-center justify-between pt-6 border-t mt-6">
-              <span className="text-sm text-gray-500">Menampilkan {currentPage} halaman dari {totalPages}</span>
+            <div className="flex items-center justify-between pt-6 border-t border-gray-100 mt-2">
+              <span className="text-sm text-gray-500">Halaman {currentPage} dari {totalPages}</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} className="rounded-md border-gray-300">
                   <ChevronLeft size={16} />
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} className="rounded-md border-gray-300">
                   <ChevronRight size={16} />
                 </Button>
               </div>

@@ -8,9 +8,9 @@ import { CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-r
 export default function LaporanKerusakan() {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
-  const [idSewa, setIdSewa] = useState<number | null>(null);
-  const [idKamar, setIdKamar] = useState<number | null>(null);
-  const [kamar, setKamar] = useState<any>(null);
+
+  // DATA STATES
+  const [sewaList, setSewaList] = useState<any[]>([]); // Menyimpan daftar semua sewa aktif
   const [fasilitas, setFasilitas] = useState<any[]>([]);
   const [laporanList, setLaporanList] = useState<any[]>([]);
 
@@ -26,6 +26,7 @@ export default function LaporanKerusakan() {
   });
 
   const [form, setForm] = useState({
+    id_sewa: "", // Menyimpan ID sewa yang dipilih (mewakili kamar)
     id_fasilitas: "",
     id_detail_fasiliitas_kamar: "",
     laporan: "",
@@ -34,7 +35,7 @@ export default function LaporanKerusakan() {
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
   };
 
   useEffect(() => {
@@ -46,39 +47,60 @@ export default function LaporanKerusakan() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: sewa } = await supabase
+    // 1. AMBIL SEMUA KAMAR/SEWA AKTIF MILIK USER
+    const { data: sewaData } = await supabase
       .from("sewa")
       .select("*")
       .eq("id_penyewa", user.id)
-      .eq("status_sewa", "Aktif")
-      .single();
+      .eq("status_sewa", "Aktif");
 
-    if (!sewa) {
-      setLoading(false);
-      return;
+    setSewaList(sewaData || []);
+
+    // Pilih otomatis kamar pertama jika ada dan form id_sewa masih kosong
+    if (sewaData && sewaData.length > 0 && !form.id_sewa) {
+      setForm((prev) => ({ ...prev, id_sewa: String(sewaData[0].id_sewa) }));
     }
 
-    setIdSewa(sewa.id_sewa);
-    setIdKamar(sewa.id_kamar);
+    // 2. AMBIL RIWAYAT LAPORAN berdasarkan SEMUA id_sewa milik user ini
+    const idSewaArray = (sewaData || []).map(s => s.id_sewa);
+    
+    if (idSewaArray.length > 0) {
+      const { data: laporan } = await supabase
+        .from("laporan_kerusakan")
+        .select("*, fasilitas(nama_fasilitas)")
+        .in("id_sewa", idSewaArray)
+        .order("created_at", { ascending: false });
 
-    const { data: kamarData } = await supabase.from("kamar").select("*").eq("id_kamar", sewa.id_kamar).single();
-    setKamar(kamarData);
+      setLaporanList(laporan || []);
+    } else {
+      setLaporanList([]);
+    }
 
-    const { data: fasilitasData } = await supabase
-      .from("detail_fasilitas_kamar")
-      .select("*, fasilitas(nama_fasilitas)")
-      .eq("id_kamar", sewa.id_kamar);
-
-    setFasilitas(fasilitasData || []);
-
-    const { data: laporan } = await supabase
-      .from("laporan_kerusakan")
-      .select("*, fasilitas(nama_fasilitas)")
-      .eq("id_sewa", sewa.id_sewa)
-      .order("created_at", { ascending: false });
-
-    setLaporanList(laporan || []);
     setLoading(false);
+  }
+
+  // ============================================
+  // LOAD FASILITAS JIKA KAMAR BERUBAH
+  // ============================================
+  useEffect(() => {
+    if (form.id_sewa) {
+      fetchFasilitasKamar(form.id_sewa);
+    } else {
+      setFasilitas([]);
+    }
+  }, [form.id_sewa]);
+
+  async function fetchFasilitasKamar(selectedSewaId: string) {
+    const selectedSewa = sewaList.find((s) => String(s.id_sewa) === selectedSewaId);
+    
+    if (selectedSewa) {
+      const { data: fasilitasData } = await supabase
+        .from("detail_fasilitas_kamar")
+        .select("*, fasilitas(nama_fasilitas)")
+        .eq("id_kamar", selectedSewa.id_kamar);
+
+      setFasilitas(fasilitasData || []);
+    }
   }
 
   // LOGIKA PAGINATION
@@ -87,7 +109,16 @@ export default function LaporanKerusakan() {
   const currentLaporan = laporanList.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(laporanList.length / itemsPerPage);
 
-  const handleFasilitas = (e: any) => {
+  const handleKamarChange = (e: any) => {
+    setForm({
+      ...form,
+      id_sewa: e.target.value,
+      id_fasilitas: "",
+      id_detail_fasiliitas_kamar: "",
+    });
+  };
+
+  const handleFasilitasChange = (e: any) => {
     const detail = fasilitas.find((item) => Number(item.id_detail_fasiliitas_kamar) === Number(e.target.value));
     setForm({
       ...form,
@@ -98,11 +129,30 @@ export default function LaporanKerusakan() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+    if (!form.id_sewa) return showToast("Pilih kamar terlebih dahulu!", "error");
     if (!form.id_detail_fasiliitas_kamar) return showToast("Pilih fasilitas yang rusak!", "error");
     if (!form.laporan.trim()) return showToast("Keterangan laporan wajib diisi!", "error");
 
     setLoading(true);
     try {
+      // ============================================
+      // VALIDASI ANTI-SPAM (LIVE DATABASE CHECK)
+      // ============================================
+      // Mengecek kondisi terbaru fasilitas langsung dari database, mencegah spam ganda
+      const { data: cekFasilitas, error: errCek } = await supabase
+        .from("detail_fasilitas_kamar")
+        .select("kondisi_fasilitas")
+        .eq("id_detail_fasiliitas_kamar", Number(form.id_detail_fasiliitas_kamar))
+        .single();
+
+      if (cekFasilitas) {
+        if (cekFasilitas.kondisi_fasilitas === "Rusak" || cekFasilitas.kondisi_fasilitas === "Sedang Diperbaiki") {
+          setLoading(false);
+          return showToast("Gagal! Fasilitas ini sudah dilaporkan rusak sebelumnya.", "error");
+        }
+      }
+
+      // PROSES UPLOAD FOTO
       let imageUrl = null;
       if (form.file) {
         const fileExt = form.file.name.split('.').pop();
@@ -113,8 +163,12 @@ export default function LaporanKerusakan() {
         imageUrl = data.publicUrl;
       }
 
+      const sewaTerkait = sewaList.find(s => String(s.id_sewa) === form.id_sewa);
+      const idKamar = sewaTerkait?.id_kamar;
+
+      // INSERT LAPORAN
       const { error: insertError } = await supabase.from("laporan_kerusakan").insert({
-        id_sewa: idSewa,
+        id_sewa: Number(form.id_sewa),
         id_kamar: idKamar,
         id_fasilitas: Number(form.id_fasilitas),
         id_detail_fasiliitas_kamar: Number(form.id_detail_fasiliitas_kamar),
@@ -125,13 +179,19 @@ export default function LaporanKerusakan() {
 
       if (insertError) throw insertError;
 
+      // UPDATE STATUS FASILITAS JADI RUSAK
       await supabase.from("detail_fasilitas_kamar")
         .update({ kondisi_fasilitas: "Rusak" })
         .eq("id_detail_fasiliitas_kamar", Number(form.id_detail_fasiliitas_kamar));
 
       showToast("Laporan berhasil dikirim!", "success");
-      setForm({ id_fasilitas: "", id_detail_fasiliitas_kamar: "", laporan: "", file: null });
+      
+      // Reset form (kecuali id_sewa agar user tidak perlu pilih ulang kamar)
+      setForm({ ...form, id_fasilitas: "", id_detail_fasiliitas_kamar: "", laporan: "", file: null });
+      
+      // Ambil data terbaru
       getData();
+      
     } catch (err: any) {
       showToast(err.message, "error");
     } finally {
@@ -141,11 +201,11 @@ export default function LaporanKerusakan() {
 
   return (
     <div className="max-w-5xl mx-auto p-5 space-y-8 pb-32">
-      {/* Toast */}
+      {/* Toast Popup Message */}
       {toast.show && (
-        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"}`}>
+        <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
-          <p className="font-semibold">{toast.message}</p>
+          <p className="font-semibold text-sm">{toast.message}</p>
           <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
             <X size={18} />
           </button>
@@ -160,7 +220,9 @@ export default function LaporanKerusakan() {
             currentLaporan.map((item) => (
               <div key={item.id_kerusakan} className="border rounded-xl p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
                 <div>
-                  <p className="font-semibold text-gray-800">{item.fasilitas?.nama_fasilitas || "Fasilitas"}</p>
+                  <p className="font-semibold text-gray-800">
+                    {item.fasilitas?.nama_fasilitas || "Fasilitas"} <span className="text-gray-500 font-normal">- Kamar {item.id_kamar}</span>
+                  </p>
                   <p className="text-sm text-gray-500 mt-1">{item.keterangan_kerusakan}</p>
                 </div>
                 <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
@@ -200,12 +262,33 @@ export default function LaporanKerusakan() {
         
         <div>
           <label className="font-medium text-gray-700">Kamar</label>
-          <input type="text" readOnly value={kamar?.id_kamar ? `Kamar ${kamar.id_kamar}` : "-"} className="w-full border rounded-xl p-3 mt-2 bg-gray-100 text-gray-600 outline-none" />
+          <select 
+            name="id_sewa" 
+            value={form.id_sewa} 
+            onChange={handleKamarChange} 
+            className="w-full border rounded-xl p-3 mt-2 outline-none focus:ring-2 focus:ring-blue-100 transition bg-white"
+          >
+            {sewaList.length === 0 ? (
+              <option value="">-- Tidak ada kamar aktif --</option>
+            ) : (
+              sewaList.map((item) => (
+                <option key={item.id_sewa} value={item.id_sewa}>
+                  Kamar {item.id_kamar}
+                </option>
+              ))
+            )}
+          </select>
         </div>
 
         <div>
           <label className="font-medium text-gray-700">Fasilitas</label>
-          <select name="id_fasilitas" value={form.id_detail_fasiliitas_kamar} onChange={handleFasilitas} className="w-full border rounded-xl p-3 mt-2 outline-none focus:ring-2 focus:ring-blue-100 transition bg-white">
+          <select 
+            name="id_fasilitas" 
+            value={form.id_detail_fasiliitas_kamar} 
+            onChange={handleFasilitasChange} 
+            disabled={!form.id_sewa || fasilitas.length === 0}
+            className="w-full border rounded-xl p-3 mt-2 outline-none focus:ring-2 focus:ring-blue-100 transition bg-white disabled:bg-gray-100 disabled:text-gray-400"
+          >
             <option value="">Pilih Fasilitas</option>
             {fasilitas.length > 0 ? (
               fasilitas.map((item) => (
@@ -221,19 +304,30 @@ export default function LaporanKerusakan() {
 
         <div>
           <label className="font-medium text-gray-700">Keterangan Laporan</label>
-          <textarea name="laporan" value={form.laporan} onChange={(e) => setForm({...form, laporan: e.target.value})} className="w-full border rounded-xl p-3 mt-2 h-32 outline-none focus:ring-2 focus:ring-blue-100 transition resize-none" placeholder="Jelaskan detail kerusakannya di sini..." />
+          <textarea 
+            name="laporan" 
+            value={form.laporan} 
+            onChange={(e) => setForm({...form, laporan: e.target.value})} 
+            className="w-full border rounded-xl p-3 mt-2 h-32 outline-none focus:ring-2 focus:ring-blue-100 transition resize-none" 
+            placeholder="Jelaskan detail kerusakannya di sini..." 
+          />
         </div>
 
         <div>
           <label className="font-medium text-gray-700">Upload Gambar (Optional)</label>
-          <input type="file" accept="image/*" onChange={(e) => setForm({...form, file: e.target.files?.[0] || null})} className="w-full border rounded-xl p-3 mt-2 outline-none bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer" />
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={(e) => setForm({...form, file: e.target.files?.[0] || null})} 
+            className="w-full border rounded-xl p-3 mt-2 outline-none bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200 cursor-pointer" 
+          />
         </div>
 
         {/* BUTTON TENGAH DAN SESUAI WARNA NAVBAR */}
         <div className="flex justify-center w-full mt-4 pt-4 border-t">
           <Button 
             type="submit" 
-            disabled={loading} 
+            disabled={loading || sewaList.length === 0} 
             className="w-full md:w-auto min-w-[200px] bg-[#1c3163] hover:bg-[#15254b] text-white py-6 text-lg font-medium rounded-xl transition-all disabled:bg-gray-400"
           >
             {loading ? "Mengirim..." : "Kirim Laporan"}
