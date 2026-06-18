@@ -97,7 +97,7 @@ export function LoginForm({
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         // Arahkan ke halaman update password kamu setelah link diklik
-        redirectTo: "https://kos75.com/authentication/update-password",
+        redirectTo: `${window.location.origin}/authentication/update-password`,
       });
 
       if (error) throw new Error(error.message);
