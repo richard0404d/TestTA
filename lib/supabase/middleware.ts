@@ -100,7 +100,9 @@ export async function updateSession(
     ) &&
     !request.nextUrl.pathname.startsWith(
       "/auth"
-    )
+    )&&
+    !request.nextUrl.pathname.startsWith("/api/auth") && // Mengizinkan proses pengecekan token Hash
+    !request.nextUrl.pathname.startsWith("/authentication/update-password") // Mengizinkan masuk ke halaman form ganti password
   ) {
 
     const url =
