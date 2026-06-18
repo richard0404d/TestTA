@@ -15,6 +15,7 @@ export default function ProfilAdminPage() {
   // ============================================
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false); // State untuk loading password
 
   // State Toast Notification
   const [toast, setToast] = useState({
@@ -38,6 +39,12 @@ export default function ProfilAdminPage() {
     jenis_kelamin_pegawai: "true", // "true" untuk Pria, "false" untuk Wanita
     status_pegawai: "",
     id_role: 0,
+  });
+
+  // State Form Password
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: "",
+    confirmPassword: "",
   });
 
   // ============================================
@@ -83,8 +90,7 @@ export default function ProfilAdminPage() {
   // ============================================
   // HANDLE UPDATE PROFIL
   // ============================================
-  const handleUpdate = async () => {
-    // Validasi input dasar
+  const handleUpdateProfil = async () => {
     if (!profil.nama_pegawai.trim()) {
       return showToast("Nama pegawai tidak boleh kosong!", "error");
     }
@@ -118,6 +124,40 @@ export default function ProfilAdminPage() {
   };
 
   // ============================================
+  // HANDLE UPDATE PASSWORD
+  // ============================================
+  const handleUpdatePassword = async () => {
+    const { newPassword, confirmPassword } = passwordForm;
+
+    if (!newPassword || !confirmPassword) {
+      return showToast("Password tidak boleh kosong!", "error");
+    }
+
+    if (newPassword !== confirmPassword) {
+      return showToast("Password dan Konfirmasi Password tidak cocok!", "error");
+    }
+
+    if (newPassword.length < 6) {
+      return showToast("Password minimal 6 karakter!", "error");
+    }
+
+    setUpdatingPassword(true);
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      showToast("Gagal mereset password: " + error.message, "error");
+    } else {
+      showToast("Password berhasil diperbarui!", "success");
+      setPasswordForm({ newPassword: "", confirmPassword: "" }); // Kosongkan form setelah sukses
+    }
+    
+    setUpdatingPassword(false);
+  };
+
+  // ============================================
   // RENDER LOADING
   // ============================================
   if (loading) {
@@ -140,7 +180,7 @@ export default function ProfilAdminPage() {
           toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"
         }`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
-          <p className="font-semibold">{toast.message}</p>
+          <p className="font-semibold text-sm">{toast.message}</p>
           <button onClick={() => setToast({ ...toast, show: false })} className="ml-4 hover:opacity-70 transition">
             <X size={18} />
           </button>
@@ -148,10 +188,10 @@ export default function ProfilAdminPage() {
       )}
 
       <main className="pt-24 md:ml-[260px] p-5 md:p-8">
-        
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto space-y-8">
+          
           {/* HEADER PROFIL */}
-          <div className="flex items-center gap-4 mb-8">
+          <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-[#1c3163] text-white rounded-full flex items-center justify-center shadow-md">
               <UserCircle size={40} />
             </div>
@@ -163,7 +203,9 @@ export default function ProfilAdminPage() {
             </div>
           </div>
 
+          {/* SECTION 1: FORM PROFIL */}
           <div className="bg-white rounded-3xl border shadow-sm p-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Informasi Pribadi</h2>
             <div className="space-y-6">
               
               {/* NAMA LENGKAP */}
@@ -189,7 +231,12 @@ export default function ProfilAdminPage() {
                   <input 
                     type="text"
                     value={profil.nomor_telepon_pegawai}
-                    onChange={(e) => setProfil({...profil, nomor_telepon_pegawai: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^[0-9]+$/.test(val)) {
+                        setProfil({...profil, nomor_telepon_pegawai: val});
+                      }
+                    }}
                     placeholder="Contoh: 0812..."
                     className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-100 transition"
                   />
@@ -216,7 +263,7 @@ export default function ProfilAdminPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Email Akun</label>
-                  <p className="text-gray-800 font-medium mt-1.5">{profil.email_pegawai}</p>
+                  <p className="text-gray-800 font-medium mt-1.5 truncate">{profil.email_pegawai}</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">Status Pegawai</label>
@@ -230,21 +277,62 @@ export default function ProfilAdminPage() {
                 </div>
               </div>
 
-              {/* TOMBOL SIMPAN */}
+              {/* TOMBOL SIMPAN PROFIL */}
               <div className="pt-6">
                 <button 
-                  onClick={handleUpdate}
+                  onClick={handleUpdateProfil}
                   disabled={saving}
                   className="w-full md:w-auto px-8 py-3.5 bg-[#1c3163] text-white rounded-xl font-semibold hover:bg-[#16274f] transition disabled:bg-gray-400 disabled:cursor-not-allowed shadow-md shadow-blue-900/10"
                 >
-                  {saving ? "Menyimpan..." : "Simpan Perubahan"}
+                  {saving ? "Menyimpan..." : "Simpan Perubahan Profil"}
                 </button>
               </div>
 
             </div>
           </div>
-        </div>
 
+          {/* SECTION 2: FORM PASSWORD */}
+          <div className="bg-white rounded-3xl border shadow-sm p-8">
+            <h2 className="text-xl font-bold text-gray-800 mb-6">Keamanan Akun</h2>
+            <div className="space-y-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 ml-1">Password Baru</label>
+                  <input 
+                    type="password"
+                    placeholder="Minimal 6 karakter"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                    className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 ml-1">Ulangi Password Baru</label>
+                  <input 
+                    type="password"
+                    placeholder="Ketik ulang password baru"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                    className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  onClick={handleUpdatePassword}
+                  disabled={updatingPassword}
+                  className="w-full md:w-auto px-8 py-3.5 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-900 transition shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {updatingPassword ? "Memperbarui..." : "Update Password"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </main>
     </div>
   );
