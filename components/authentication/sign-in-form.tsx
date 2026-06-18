@@ -78,9 +78,42 @@ export function LoginForm({
   };
 
   // ============================================
+  // HANDLE LUPA PASSWORD
+  // ============================================
+  const handleResetPassword = async () => {
+    // Validasi apakah email sudah diisi sebelum reset
+    if (!email.trim()) {
+      return showToast("Masukkan email Anda terlebih dahulu untuk mereset password!", "error");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return showToast("Format email tidak valid!", "error");
+    }
+
+    setIsLoading(true);
+    const supabase = createClient();
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        // Arahkan ke halaman update password kamu setelah link diklik
+        redirectTo: "https://kos75.com/authentication/update-password",
+      });
+
+      if (error) throw new Error(error.message);
+
+      showToast("Link reset password telah dikirim ke email Anda!", "success");
+    } catch (error: any) {
+      console.error(error);
+      showToast(error.message || "Gagal mengirim link reset password", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ============================================
   // HANDLE LOGIN
   // ============================================
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -223,7 +256,7 @@ export function LoginForm({
         className={cn("flex flex-col gap-6", className)}
         {...props}
         onSubmit={handleLogin}
-        noValidate // Mematikan validasi default browser agar toast bisa muncul
+        noValidate 
       >
         <FieldGroup>
           {/* TITLE */}
@@ -250,8 +283,16 @@ export function LoginForm({
 
           {/* PASSWORD */}
           <Field>
-            <div className="flex items-center">
+            {/* LABEL & LUPA PASSWORD */}
+            <div className="flex items-center justify-between">
               <FieldLabel htmlFor="password">Password</FieldLabel>
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                className="text-sm font-medium text-primary hover:underline focus:outline-none"
+              >
+                Lupa password?
+              </button>
             </div>
             <InputGroup>
               <InputGroupInput
