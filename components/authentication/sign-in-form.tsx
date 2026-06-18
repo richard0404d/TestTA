@@ -45,7 +45,6 @@ export function LoginForm({
   // ============================================
   // STATE
   // ============================================
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,10 +54,9 @@ export function LoginForm({
   const [toast, setToast] = useState({
     show: false,
     message: "",
-    type: "success", // 'success' | 'error'
+    type: "success", 
   });
 
-  // HYDRATION FIX
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -67,48 +65,12 @@ export function LoginForm({
 
   const router = useRouter();
 
-  // ============================================
-  // HELPER TOAST
-  // ============================================
+  // Helper Toast
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: "", type: "success" });
     }, 3000);
-  };
-
-  // ============================================
-  // HANDLE LUPA PASSWORD
-  // ============================================
-  const handleResetPassword = async () => {
-    // Validasi apakah email sudah diisi sebelum reset
-    if (!email.trim()) {
-      return showToast("Masukkan email Anda terlebih dahulu untuk mereset password!", "error");
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return showToast("Format email tidak valid!", "error");
-    }
-
-    setIsLoading(true);
-    const supabase = createClient();
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        // Arahkan ke halaman update password kamu setelah link diklik
-        redirectTo: `${window.location.origin}/authentication/update-password`,
-      });
-
-      if (error) throw new Error(error.message);
-
-      showToast("Link reset password telah dikirim ke email Anda!", "success");
-    } catch (error: any) {
-      console.error(error);
-      showToast(error.message || "Gagal mengirim link reset password", "error");
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   // ============================================
@@ -130,15 +92,11 @@ export function LoginForm({
     if (!password) {
       return showToast("Password tidak boleh kosong!", "error");
     }
-    // -----------------------
 
     const supabase = createClient();
     setIsLoading(true);
 
     try {
-      // ============================================
-      // LOGIN AUTH
-      // ============================================
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -152,56 +110,37 @@ export function LoginForm({
         throw new Error("User tidak ditemukan");
       }
 
-      // ============================================
       // CEK TABEL PENYEWA
-      // ============================================
       const { data: penyewa, error: penyewaError } = await supabase
         .from("penyewa")
         .select("id_penyewa, status_penyewa")
         .eq("id_penyewa", user.id)
         .maybeSingle();
 
-      // ============================================
-      // JIKA PENYEWA
-      // ============================================
       if (penyewa && !penyewaError) {
-        // Cek Status Aktif
         if (penyewa.status_penyewa !== "Aktif") {
           await supabase.auth.signOut();
           throw new Error("Akun penyewa Anda tidak aktif atau sedang ditangguhkan.");
         }
-
-        // ROLE PENYEWA
         localStorage.setItem("role", "3");
         showToast("Login berhasil!", "success");
         setTimeout(() => router.push("/user/dashboard"), 1000);
         return;
       }
 
-      // ============================================
       // CEK TABEL PEGAWAI
-      // ============================================
       const { data: pegawai, error: pegawaiError } = await supabase
         .from("pegawai")
         .select("id_role, status_pegawai")
         .eq("id_pegawai", user.id)
         .maybeSingle();
 
-      // ============================================
-      // JIKA PEGAWAI
-      // ============================================
       if (pegawai && !pegawaiError) {
-        // Cek Status Aktif
         if (pegawai.status_pegawai !== "Aktif") {
           await supabase.auth.signOut();
           throw new Error("Akun pegawai Anda tidak aktif.");
         }
-
-        // ============================================
-        // CEK ROLE
-        // ============================================
         if (pegawai.id_role === 1 || pegawai.id_role === 2) {
-          // SIMPAN ROLE
           localStorage.setItem("role", String(pegawai.id_role));
           showToast("Login admin berhasil!", "success");
           setTimeout(() => router.push("/admin/dashboardAdmin"), 1000);
@@ -209,9 +148,6 @@ export function LoginForm({
         }
       }
       
-      // ============================================
-      // ROLE TIDAK DITEMUKAN
-      // ============================================
       await supabase.auth.signOut();
       throw new Error("Role tidak ditemukan atau akun tidak valid");
 
@@ -226,12 +162,8 @@ export function LoginForm({
   // ============================================
   // UI
   // ============================================
-
   return (
     <>
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION */}
-      {/* ============================================ */}
       {toast.show && (
         <div 
           className={`fixed top-10 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
@@ -283,17 +215,7 @@ export function LoginForm({
 
           {/* PASSWORD */}
           <Field>
-            {/* LABEL & LUPA PASSWORD */}
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                className="text-sm font-medium text-primary hover:underline focus:outline-none"
-              >
-                Lupa password?
-              </button>
-            </div>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
             <InputGroup>
               <InputGroupInput
                 id="password"
@@ -311,6 +233,16 @@ export function LoginForm({
                 </InputGroupButton>
               </InputGroupAddon>
             </InputGroup>
+            
+            {/* LUPA PASSWORD - SEKARANG DI BAWAH INPUT & JADI LINK */}
+            <div className="flex justify-end mt-1">
+              <Link 
+                href="/authentication/forgot-password"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Lupa password?
+              </Link>
+            </div>
           </Field>
 
           {/* BUTTON */}
