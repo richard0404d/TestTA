@@ -155,11 +155,6 @@ export default function Reservasi() {
     }
   };
 
-  const getFasilitas = async () => {
-    const { data, error } = await supabase.from("fasilitas").select("*");
-    if (!error && data) setFasilitas(data);
-  };
-
   const getUserReservasi = async (userId: string) => {
     const { data, error } = await supabase
       .from("reservasi")
@@ -175,8 +170,31 @@ export default function Reservasi() {
     checkExpiredReservasi();
     getKamar();
     getPenyewa();
-    getFasilitas();
   }, []);
+
+  // ============================================
+  // LOAD FASILITAS BERDASARKAN KAMAR (BARU)
+  // ============================================
+  useEffect(() => {
+    const fetchFasilitasKamar = async () => {
+      if (!form.kamar) {
+        setFasilitas([]);
+        return;
+      }
+
+      // Ambil detail fasilitas khusus untuk id_kamar yang dipilih di dropdown
+      const { data, error } = await supabase
+        .from("detail_fasilitas_kamar")
+        .select("id_detail_fasiliitas_kamar, informasi_tambahan, fasilitas(nama_fasilitas)")
+        .eq("id_kamar", form.kamar);
+
+      if (!error && data) {
+        setFasilitas(data);
+      }
+    };
+
+    fetchFasilitasKamar();
+  }, [form.kamar]); // Effect ini akan berjalan setiap kali form.kamar berubah
 
   // ============================================
   // KALKULASI HARGA DINAMIS
@@ -274,19 +292,6 @@ export default function Reservasi() {
       // ============================================
       // VALIDASI BATAS MAKSIMAL (3 KAMAR)
       // ============================================
-      // CEK 1: RESERVASI AKTIF
-      const { data: reservasiAktif } = await supabase
-        .from("reservasi")
-        .select("id_reservasi")
-        .eq("id_penyewa", user.id)
-        .in("status_reservasi", ["Menunggu Pembayaran", "Berhasil"]);
-
-      if (reservasiAktif && reservasiAktif.length >= 3) {
-        setLoading(false);
-        return showToast("Batas maksimal! Anda hanya dapat mereservasi maksimal 3 kamar.", "error");
-      }
-
-      // CEK 2: SEWA AKTIF
       const { data: sewaAktif } = await supabase
         .from("sewa")
         .select("id_sewa")
@@ -295,7 +300,7 @@ export default function Reservasi() {
 
       if (sewaAktif && sewaAktif.length >= 3) {
         setLoading(false);
-        return showToast("Batas maksimal! Anda sudah memiliki 3 kamar yang disewa/dipesan.", "error");
+        return showToast("Batas maksimal tercapai! Anda hanya dapat menyewa/mereservasi maksimal 3 kamar.", "error");
       }
 
       // Claim kamar
@@ -524,19 +529,32 @@ export default function Reservasi() {
         </Button>
       </form>
 
+      {/* ============================================ */}
+      {/* UPDATE FASILITAS KAMAR DENGAN INFORMASI TAMBAHAN */}
+      {/* ============================================ */}
       <div className="border rounded-2xl p-6 bg-white shadow-sm mt-6">
-        <h3 className="font-bold text-gray-800 mb-4 border-b pb-3">Fasilitas Kamar</h3>
+        <h3 className="font-bold text-gray-800 mb-4 border-b pb-3">Fasilitas Kamar {form.kamar}</h3>
         {fasilitas.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {fasilitas.map((item) => (
-              <div key={item.id_fasilitas} className="flex items-center gap-3 text-gray-700">
-                <CheckCircle size={20} className="text-[#1c3163]" />
-                <span className="text-sm font-medium capitalize">{item.nama_fasilitas}</span>
+            {fasilitas.map((item, idx) => (
+              <div key={idx} className="flex items-start gap-3 text-gray-700">
+                <CheckCircle size={20} className="text-[#1c3163] shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-sm font-medium capitalize block">
+                    {item.fasilitas?.nama_fasilitas}
+                  </span>
+                  {/* Menampilkan informasi tambahan (Daya Watt, Ukuran, dll) jika ada */}
+                  {item.informasi_tambahan && (
+                    <span className="text-xs text-gray-500 block mt-0.5 leading-relaxed">
+                      {item.informasi_tambahan}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-gray-500 text-center py-4">Memuat data fasilitas...</p>
+          <p className="text-sm text-gray-500 text-center py-4">Memuat data fasilitas / fasilitas tidak tersedia...</p>
         )}
       </div>
 
