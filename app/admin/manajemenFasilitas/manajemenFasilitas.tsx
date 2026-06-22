@@ -60,6 +60,7 @@ export default function ManajemenFasilitas() {
     id_kamar: "",
     id_fasilitas: "",
     kondisi_fasilitas: "Baik",
+    informasi_tambahan: "", // NEW: Kolom baru untuk daya listrik, ukuran, dll
   });
 
   // ============================================
@@ -195,6 +196,7 @@ export default function ManajemenFasilitas() {
             id_kamar: Number(form.id_kamar),
             id_fasilitas: Number(form.id_fasilitas),
             kondisi_fasilitas: form.kondisi_fasilitas,
+            informasi_tambahan: form.informasi_tambahan, // Save NEW FIELD
           })
           .eq("id_detail_fasiliitas_kamar", editId);
 
@@ -221,6 +223,7 @@ export default function ManajemenFasilitas() {
             id_kamar: Number(form.id_kamar),
             id_fasilitas: Number(form.id_fasilitas),
             kondisi_fasilitas: form.kondisi_fasilitas,
+            informasi_tambahan: form.informasi_tambahan, // Save NEW FIELD
           },
         ]);
 
@@ -229,7 +232,7 @@ export default function ManajemenFasilitas() {
       }
 
       await getDetailFasilitas();
-      setForm({ id_kamar: "", id_fasilitas: "", kondisi_fasilitas: "Baik" });
+      setForm({ id_kamar: "", id_fasilitas: "", kondisi_fasilitas: "Baik", informasi_tambahan: "" });
       setEditId(null);
       setOpenModal(false);
     } catch (error: any) {
@@ -389,7 +392,7 @@ export default function ManajemenFasilitas() {
                 onClick={() => {
                   setOpenModal(true);
                   setEditId(null);
-                  setForm({ id_kamar: "", id_fasilitas: "", kondisi_fasilitas: "Baik" });
+                  setForm({ id_kamar: "", id_fasilitas: "", kondisi_fasilitas: "Baik", informasi_tambahan: "" });
                 }}
                 className="flex items-center gap-2 bg-[#1c3163] hover:bg-[#16274f] transition text-white px-5 py-3 rounded-xl"
               >
@@ -406,7 +409,6 @@ export default function ManajemenFasilitas() {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="text-left px-6 py-4 font-semibold text-gray-700">Nomor Kamar</th>
-                  {/* DIPERBAIKI: Padding px-10 dan width w-40 agar tidak mepet */}
                   <th className="text-center px-10 py-4 font-semibold text-gray-700 w-40">Detail</th>
                 </tr>
               </thead>
@@ -423,7 +425,6 @@ export default function ManajemenFasilitas() {
                       <td className="px-6 py-4 font-medium text-gray-800">
                         Kamar {kamarId}
                       </td>
-                      {/* DIPERBAIKI: Padding px-10 */}
                       <td className="px-10 py-4">
                         <div className="flex justify-center">
                           <button
@@ -495,7 +496,6 @@ export default function ManajemenFasilitas() {
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700 w-16">ID</th>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700">Nama Fasilitas</th>
-                  {/* DIPERBAIKI: Padding px-10 dan width w-40 agar sama dengan tabel detail */}
                   <th className="text-center px-10 py-4 font-semibold text-gray-700 w-40">Aksi</th>
                 </tr>
               </thead>
@@ -505,7 +505,6 @@ export default function ManajemenFasilitas() {
                     <tr key={`master-${index}`} className="border-t hover:bg-gray-50 transition">
                       <td className="px-6 py-4 text-gray-800">{item.id_fasilitas}</td>
                       <td className="px-6 py-4 text-gray-800 font-medium">{item.nama_fasilitas}</td>
-                      {/* DIPERBAIKI: Padding px-10 */}
                       <td className="px-10 py-4">
                         <div className="flex justify-center">
                           <button
@@ -603,6 +602,19 @@ export default function ManajemenFasilitas() {
                   </select>
                 </div>
 
+                {/* NEW INPUT: INFORMASI TAMBAHAN */}
+                <div>
+                  <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">Informasi Tambahan <span className="text-gray-400 font-normal">(Daya, Ukuran, Merek, dll)</span></label>
+                  <input 
+                    type="text" 
+                    name="informasi_tambahan" 
+                    value={form.informasi_tambahan} 
+                    onChange={handleChange} 
+                    placeholder="Contoh: Daya 400 Watt, Ukuran 100x200cm..." 
+                    className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 bg-white" 
+                  />
+                </div>
+
                 <div className="flex justify-end gap-4 pt-5">
                   <button onClick={() => setOpenModal(false)} className="px-6 py-3 rounded-xl border hover:bg-gray-100 transition font-medium text-gray-700">Batal</button>
                   <button onClick={handleSave} disabled={loading} className="px-6 py-3 rounded-xl bg-[#1c3163] hover:bg-[#16274f] text-white transition disabled:bg-gray-400 font-medium">
@@ -650,7 +662,7 @@ export default function ManajemenFasilitas() {
         {/* ============================================ */}
         {detailData && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]">
-            <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="bg-white w-full max-w-3xl rounded-3xl p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
               <button onClick={() => setDetailData(null)} className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition">
                 <X size={24} />
               </button>
@@ -677,43 +689,83 @@ export default function ManajemenFasilitas() {
                       </div>
                     </div>
 
-                    <div>
-                      <p className="text-gray-500 mb-1 text-sm font-medium">Ubah Kondisi</p>
-                      <select
-                        value={item.kondisi_fasilitas}
-                        onChange={async (e) => {
-                          const value = e.target.value;
-                          try {
-                            const { error } = await supabase
-                              .from("detail_fasilitas_kamar")
-                              .update({ kondisi_fasilitas: value })
-                              .eq("id_detail_fasiliitas_kamar", item.id_detail_fasiliitas_kamar);
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* UBAH KONDISI */}
+                      <div>
+                        <p className="text-gray-500 mb-1 text-sm font-medium">Ubah Kondisi</p>
+                        <select
+                          value={item.kondisi_fasilitas}
+                          onChange={async (e) => {
+                            const value = e.target.value;
+                            try {
+                              const { error } = await supabase
+                                .from("detail_fasilitas_kamar")
+                                .update({ kondisi_fasilitas: value })
+                                .eq("id_detail_fasiliitas_kamar", item.id_detail_fasiliitas_kamar);
 
-                            if (error) throw error;
+                              if (error) throw error;
 
-                            const updated = detailData.map((d: any) => {
-                              if (d.id_detail_fasiliitas_kamar === item.id_detail_fasiliitas_kamar) {
-                                return { ...d, kondisi_fasilitas: value };
+                              const updated = detailData.map((d: any) => {
+                                if (d.id_detail_fasiliitas_kamar === item.id_detail_fasiliitas_kamar) {
+                                  return { ...d, kondisi_fasilitas: value };
+                                }
+                                return d;
+                              });
+                              setDetailData(updated);
+                              showToast("Kondisi fasilitas berhasil diubah", "success");
+                              await getDetailFasilitas();
+                            } catch (error: any) {
+                              showToast(error.message, "error");
+                            }
+                          }}
+                          className={`w-full border rounded-xl px-4 py-3 outline-none font-medium focus:ring-2 focus:ring-blue-100 ${
+                            item.kondisi_fasilitas === "Baik" ? "text-green-600 bg-green-50" :
+                            item.kondisi_fasilitas === "Rusak" ? "text-red-600 bg-red-50" :
+                            "text-yellow-600 bg-yellow-50"
+                          }`}
+                        >
+                          <option value="Baik" className="text-gray-800">Baik</option>
+                          <option value="Rusak" className="text-gray-800">Rusak</option>
+                          <option value="Sedang Diperbaiki" className="text-gray-800">Sedang Diperbaiki</option>
+                        </select>
+                      </div>
+
+                      {/* UBAH INFORMASI TAMBAHAN */}
+                      <div>
+                        <p className="text-gray-500 mb-1 text-sm font-medium">Informasi Tambahan</p>
+                        <input
+                          type="text"
+                          defaultValue={item.informasi_tambahan || ""}
+                          placeholder="Daya, Ukuran, Merk..."
+                          onBlur={async (e) => {
+                            const value = e.target.value;
+                            // Hanya update jika nilainya berubah
+                            if (value !== (item.informasi_tambahan || "")) {
+                              try {
+                                const { error } = await supabase
+                                  .from("detail_fasilitas_kamar")
+                                  .update({ informasi_tambahan: value })
+                                  .eq("id_detail_fasiliitas_kamar", item.id_detail_fasiliitas_kamar);
+
+                                if (error) throw error;
+
+                                const updated = detailData.map((d: any) => {
+                                  if (d.id_detail_fasiliitas_kamar === item.id_detail_fasiliitas_kamar) {
+                                    return { ...d, informasi_tambahan: value };
+                                  }
+                                  return d;
+                                });
+                                setDetailData(updated);
+                                showToast("Informasi tambahan berhasil diupdate", "success");
+                                await getDetailFasilitas();
+                              } catch (error: any) {
+                                showToast(error.message, "error");
                               }
-                              return d;
-                            });
-                            setDetailData(updated);
-                            showToast("Kondisi fasilitas berhasil diubah", "success");
-                            await getDetailFasilitas();
-                          } catch (error: any) {
-                            showToast(error.message, "error");
-                          }
-                        }}
-                        className={`w-full border rounded-xl px-4 py-3 outline-none font-medium focus:ring-2 focus:ring-blue-100 ${
-                          item.kondisi_fasilitas === "Baik" ? "text-green-600 bg-green-50" :
-                          item.kondisi_fasilitas === "Rusak" ? "text-red-600 bg-red-50" :
-                          "text-yellow-600 bg-yellow-50"
-                        }`}
-                      >
-                        <option value="Baik" className="text-gray-800">Baik</option>
-                        <option value="Rusak" className="text-gray-800">Rusak</option>
-                        <option value="Sedang Diperbaiki" className="text-gray-800">Sedang Diperbaiki</option>
-                      </select>
+                            }
+                          }}
+                          className="w-full border rounded-xl px-4 py-3 outline-none font-medium focus:ring-2 focus:ring-blue-100 bg-white text-gray-800"
+                        />
+                      </div>
                     </div>
 
                     {/* BUTTON HAPUS FASILITAS */}
