@@ -280,11 +280,11 @@ export default function ManajemenKamar() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block mb-2 text-sm font-medium text-gray-700">Harga Sewa Utama (Rp)</label>
-                    <input type="number" name="harga_sewa_kamar" value={form.harga_sewa_kamar} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#1c3163]/30 transition" />
+                    <input type="number" name="harga_sewa_kamar" placeholder="Contoh: 600000" value={form.harga_sewa_kamar} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#1c3163]/30 transition" />
                   </div>
                   <div>
                     <label className="block mb-2 text-sm font-medium text-gray-700">Harga Tambahan/Orang (Rp)</label>
-                    <input type="number" name="harga_tambahan_penyewa" value={form.harga_tambahan_penyewa} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#1c3163]/30 transition" />
+                    <input type="number" name="harga_tambahan_penyewa" placeholder="Contoh: 300000" value={form.harga_tambahan_penyewa} onChange={handleChange} className="w-full border rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#1c3163]/30 transition" />
                   </div>
                 </div>
                 <div>
