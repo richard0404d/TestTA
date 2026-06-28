@@ -90,6 +90,10 @@ export function SignUpForm({
     // ============================================
     // VALIDASI INPUT LENGKAP
     // ============================================
+    if (!form.nama.trim() && !form.email.trim() && !form.password && !form.telepon && !fileKtp) {
+      return showToast("Semua field wajib diisi!", "error");
+    }
+
     if (!form.nama.trim()) {
       return showToast("Nama Lengkap tidak boleh kosong!", "error");
     }
@@ -127,18 +131,33 @@ export function SignUpForm({
     setIsLoading(true);
 
     try {
-      // 2. Registrasi Auth Supabase (Tabel auth.users bawaan)
+      // 1. Registrasi Auth Supabase (Tabel auth.users bawaan)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
       });
 
-      if (authError) throw authError;
+      // ============================================
+      // CEGAT ERROR DARI SUPABASE
+      // ============================================
+      if (authError) {
+        // Terjemahkan pesan "User already registered"
+        if (authError.message === "User already registered") {
+          throw new Error("Email sudah terdaftar!");
+        }
+        // Jika ada error lain dari Supabase (misal rate limit), lempar error aslinya
+        throw new Error(authError.message);
+      }
 
       const user = authData.user;
       if (!user) throw new Error("Gagal membuat user.");
 
-      // 3. Upload Gambar KTP ke Bucket "ktp"
+      // Pengecekan cadangan (jika settingan 'Prevent email enumeration' di Supabase diubah suatu saat nanti)
+      if (user.identities && user.identities.length === 0) {
+        throw new Error("Email sudah terdaftar!");
+      }
+
+      // 2. Upload Gambar KTP ke Bucket "ktp"
       const fileExt = fileKtp.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
@@ -155,40 +174,40 @@ export function SignUpForm({
 
       const ktpUrl = publicUrlData.publicUrl;
 
-      // 4. Insert ke Tabel Penyewa
-      // Konversi gender "true"/"false" string menjadi boolean sejati
+      // 3. Insert ke Tabel Penyewa
       const isPria = form.gender === "true";
 
       const { error: insertError } = await supabase
         .from("penyewa")
         .insert([
           {
-            id_penyewa: user.id, // ID diambil dari auth.users
+            id_penyewa: user.id,
             nama_penyewa: form.nama,
             nomor_telepon_penyewa: form.telepon,
-            jenis_kelamin_penyewa: isPria, // boolean
+            jenis_kelamin_penyewa: isPria,
             ktp_penyewa: ktpUrl,
             status_penyewa: "Aktif",
             email_penyewa: form.email,
-            role: 3, // Otomatis Role 3 (Penyewa)
+            role: 3,
           }
         ]);
 
       if (insertError) throw insertError;
 
-      // 5. Sukses
+      // 4. Sukses
       showToast("Registrasi berhasil! Silakan login.", "success");
       setTimeout(() => {
-        router.push("/authentication/sign-in"); // Sesuaikan route login Anda
+        router.push("/authentication/sign-in");
       }, 1500);
 
     } catch (error: any) {
+      // Jika error dilempar dari atas, toast akan menampilkan pesan bahasa Indonesianya di sini
       console.error(error);
       showToast(error.message || "Terjadi kesalahan saat registrasi", "error");
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
   // ============================================
   // UI

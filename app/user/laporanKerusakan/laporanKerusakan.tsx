@@ -129,6 +129,7 @@ export default function LaporanKerusakan() {
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
+    if (!form.id_fasilitas && !form.id_detail_fasiliitas_kamar && !form.laporan) return showToast("Harap mengisi semua field wajib!", "error");
     if (!form.id_sewa) return showToast("Pilih kamar terlebih dahulu!", "error");
     if (!form.id_detail_fasiliitas_kamar) return showToast("Pilih fasilitas yang rusak!", "error");
     if (!form.laporan.trim()) return showToast("Keterangan laporan wajib diisi!", "error");
@@ -148,7 +149,7 @@ export default function LaporanKerusakan() {
       if (cekFasilitas) {
         if (cekFasilitas.kondisi_fasilitas === "Rusak" || cekFasilitas.kondisi_fasilitas === "Sedang Diperbaiki") {
           setLoading(false);
-          return showToast("Gagal! Fasilitas ini sudah dilaporkan rusak sebelumnya.", "error");
+          return showToast("Fasilitas ini sudah dilaporkan sebelumnya.", "error");
         }
       }
 
@@ -184,7 +185,7 @@ export default function LaporanKerusakan() {
         .update({ kondisi_fasilitas: "Rusak" })
         .eq("id_detail_fasiliitas_kamar", Number(form.id_detail_fasiliitas_kamar));
 
-      showToast("Laporan berhasil dikirim!", "success");
+      showToast("Laporan kerusakan berhasil dikirim!", "success");
       
       // Reset form (kecuali id_sewa agar user tidak perlu pilih ulang kamar)
       setForm({ ...form, id_fasilitas: "", id_detail_fasiliitas_kamar: "", laporan: "", file: null });

@@ -300,7 +300,7 @@ export default function Reservasi() {
 
       if (sewaAktif && sewaAktif.length >= 3) {
         setLoading(false);
-        return showToast("Batas maksimal tercapai! Anda hanya dapat menyewa/mereservasi maksimal 3 kamar.", "error");
+        return showToast("Anda hanya dapat melakukan sewa/reservasi maksimal 3 kamar.", "error");
       }
 
       // Claim kamar

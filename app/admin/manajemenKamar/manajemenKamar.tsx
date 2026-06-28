@@ -146,6 +146,9 @@ export default function ManajemenKamar() {
   // INSERT / UPDATE
   // ============================================
   const handleSubmit = async () => {
+    if (!form.harga_sewa_kamar && form.harga_sewa_kamar.toString().trim() === "") {
+      return showToast("Harap mengisi semua field wajib!", "error");
+    }
     if (!form.harga_sewa_kamar || form.harga_sewa_kamar.toString().trim() === "") {
       return showToast("Harga Sewa Kamar wajib diisi!", "error");
     }
@@ -161,7 +164,7 @@ export default function ManajemenKamar() {
       if (editId) {
         const { error } = await supabase.from("kamar").update(payload).eq("id_kamar", editId);
         if (error) throw error;
-        showToast("Kamar berhasil diupdate", "success");
+        showToast("Kamar berhasil diperbarui", "success");
       } else {
         const { error } = await supabase.from("kamar").insert([payload]);
         if (error) throw error;

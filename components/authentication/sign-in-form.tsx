@@ -80,6 +80,10 @@ export function LoginForm({
     e.preventDefault();
 
     // --- VALIDASI INPUT ---
+    if (!email.trim() && !password) {
+      return showToast("Email dan password tidak boleh kosong!", "error");
+    }
+
     if (!email.trim()) {
       return showToast("Email tidak boleh kosong!", "error");
     }
