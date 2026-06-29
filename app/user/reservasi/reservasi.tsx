@@ -56,7 +56,8 @@ export default function Reservasi() {
   const bannerImages = [
     "/images/GambarKamar.png",
     "/images/GambarKamar2.png", 
-    "/images/GambarKamar3.png", 
+    "/images/GambarKamar4.jpeg", 
+    "/images/GambarKamar3.png",
   ];
 
   useEffect(() => {

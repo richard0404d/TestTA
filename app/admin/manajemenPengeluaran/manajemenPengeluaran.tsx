@@ -137,6 +137,18 @@ export default function ManajemenPengeluaran() {
       }
 
       // --- VALIDASI FORM ---
+      const isTanggalKosong = !form.tanggal_pengeluaran || form.tanggal_pengeluaran.trim() === "";
+      const isKeteranganKosong = !form.keterangan_pengeluaran || form.keterangan_pengeluaran.trim() === "";
+      const isJumlahKosong = !form.jumlah_pengeluaran || form.jumlah_pengeluaran.toString().trim() === "";
+
+      // 0. Cek apakah SELURUH field kosong
+      if (isTanggalKosong && isKeteranganKosong && isJumlahKosong) {
+        showToast("Harap mengisi semua field wajib!", "error");
+        setLoading(false);
+        return;
+      }
+
+      // --- VALIDASI FORM ---
       // 1. Cek apakah tanggal sudah diisi
       if (!form.tanggal_pengeluaran || form.tanggal_pengeluaran.trim() === "") {
         showToast("Tanggal pengeluaran wajib diisi!", "error");

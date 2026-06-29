@@ -98,6 +98,12 @@ export default function ManajemenLaporanKerusakan() {
   // ============================================
   const handleSubmitEdit = async () => {
     if (!editId) return;
+
+    // --- TAMBAHAN VALIDASI ---
+    if (!editForm.keterangan_perbaikan || editForm.keterangan_perbaikan.trim() === "") {
+      return showToast("Catatan atau detail perbaikan wajib diisi!", "error");
+    }
+
     setLoading(true);
 
     try {
@@ -176,8 +182,9 @@ export default function ManajemenLaporanKerusakan() {
       {/* TOAST */}
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-          {toast.type === "success" ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-          <p className="font-medium">{toast.message}</p>
+          {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
+          {/* Ubah font-medium menjadi font-semibold atau font-bold */}
+          <p className="font-semibold">{toast.message}</p> 
         </div>
       )}
 

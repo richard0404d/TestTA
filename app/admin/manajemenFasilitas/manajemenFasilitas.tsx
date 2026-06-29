@@ -181,6 +181,7 @@ export default function ManajemenFasilitas() {
   // ============================================
   const handleSave = async () => {
     // --- VALIDASI INPUT ---
+    if (!form.id_kamar && !form.id_fasilitas) return showToast("Harap mengisi semua field wajib!", "error");
     if (!form.id_kamar) return showToast("Silakan pilih Nomor Kamar terlebih dahulu", "error");
     if (!form.id_fasilitas) return showToast("Silakan pilih Fasilitas terlebih dahulu", "error");
     if (!form.kondisi_fasilitas) return showToast("Kondisi fasilitas wajib diisi", "error");
@@ -257,15 +258,31 @@ export default function ManajemenFasilitas() {
   // ============================================
   const handleSaveMaster = async () => {
     try {
-      if (!namaFasilitas || namaFasilitas.trim() === "") {
+      const trimmedNama = namaFasilitas.trim();
+
+      if (!trimmedNama) {
         return showToast("Nama fasilitas wajib diisi!", "error");
+      }
+
+      // Pengecekan duplikasi nama fasilitas
+      const isDuplicate = masterFasilitas.some((item) => {
+        // Jika sedang mode edit, lewati pengecekan untuk ID fasilitas yang sama
+        if (editMasterId && item.id_fasilitas === editMasterId) {
+          return false;
+        }
+        // Bandingkan nama secara case-insensitive
+        return item.nama_fasilitas.toLowerCase() === trimmedNama.toLowerCase();
+      });
+
+      if (isDuplicate) {
+        return showToast("Nama fasilitas tersebut sudah terdaftar!", "error");
       }
 
       if (editMasterId) {
         // UPDATE
         const { error } = await supabase
           .from("fasilitas")
-          .update({ nama_fasilitas: namaFasilitas })
+          .update({ nama_fasilitas: trimmedNama })
           .eq("id_fasilitas", editMasterId);
 
         if (error) throw error;
@@ -273,7 +290,7 @@ export default function ManajemenFasilitas() {
       } else {
         // INSERT
         const { error } = await supabase.from("fasilitas").insert([
-          { nama_fasilitas: namaFasilitas },
+          { nama_fasilitas: trimmedNama },
         ]);
 
         if (error) throw error;
@@ -756,7 +773,7 @@ export default function ManajemenFasilitas() {
                                   return d;
                                 });
                                 setDetailData(updated);
-                                showToast("Informasi tambahan berhasil diupdate", "success");
+                                showToast("Informasi tambahan berhasil diubah", "success");
                                 await getDetailFasilitas();
                               } catch (error: any) {
                                 showToast(error.message, "error");

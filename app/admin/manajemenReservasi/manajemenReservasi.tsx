@@ -157,7 +157,7 @@ export default function ManajemenReservasi() {
         }
       }
 
-      showToast("Reservasi dibatalkan. Status sewa & tagihan telah disesuaikan otomatis.", "success");
+      showToast("Reservasi berhasil dibatalkan.", "success");
       getReservasi(); // Refresh data tabel
     } catch (error: any) {
       console.error(error);
