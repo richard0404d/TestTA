@@ -156,6 +156,12 @@ export default function ManajemenPengeluaran() {
         return;
       }
 
+      if (isKeteranganKosong && isJumlahKosong) {
+        showToast("Harap mengisi semua field wajib!", "error");
+        setLoading(false);
+        return;
+      }
+
       // 2. Cek apakah keterangan sudah diisi
       if (!form.keterangan_pengeluaran || form.keterangan_pengeluaran.trim() === "") {
         showToast("Keterangan pengeluaran wajib diisi!", "error");
@@ -192,7 +198,7 @@ export default function ManajemenPengeluaran() {
 
         if (error) throw error;
 
-        showToast("Pengeluaran berhasil diupdate", "success");
+        showToast("Pengeluaran berhasil diubah", "success");
       } else {
         // ============================================
         // INSERT
