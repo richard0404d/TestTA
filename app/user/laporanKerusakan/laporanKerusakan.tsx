@@ -219,21 +219,41 @@ export default function LaporanKerusakan() {
         <div className="space-y-4">
           {currentLaporan.length > 0 ? (
             currentLaporan.map((item) => (
-              <div key={item.id_kerusakan} className="border rounded-xl p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition">
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    {item.fasilitas?.nama_fasilitas || "Fasilitas"} <span className="text-gray-500 font-normal">- Kamar {item.id_kamar}</span>
-                  </p>
-                  <p className="text-sm text-gray-500 mt-1">{item.keterangan_kerusakan}</p>
+              <div key={item.id_kerusakan} className="border rounded-xl p-5 flex flex-col gap-3 bg-gray-50 hover:bg-gray-100 transition shadow-sm">
+                
+                {/* Bagian Atas: Detail Keluhan Penyewa & Status */}
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-gray-800 text-lg">
+                      {item.fasilitas?.nama_fasilitas || "Fasilitas"} 
+                      <span className="text-gray-500 font-normal text-sm ml-2">- Kamar {item.id_kamar}</span>
+                    </p>
+                    {/* BAGIAN INI SUDAH DIPERBAIKI (HAPUS CLASS BLOCK) */}
+                    <p className="text-sm text-gray-600 mt-2">
+                      <span className="font-medium text-gray-800 mr-1">Keluhan Anda:</span> 
+                      {item.keterangan_kerusakan}
+                    </p>
+                  </div>
+                  <span className={`text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap ml-4 border ${
+                    item.status_perbaikan === "Sudah Diperbaiki" ? "bg-green-50 text-green-700 border-green-200" :
+                    item.status_perbaikan === "Proses Perbaikan" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                    item.status_perbaikan === "Ditolak" ? "bg-red-50 text-red-700 border-red-200" :
+                    "bg-gray-100 text-gray-700 border-gray-200"
+                  }`}>
+                    {item.status_perbaikan}
+                  </span>
                 </div>
-                <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
-                  item.status_perbaikan === "Sudah Diperbaiki" ? "bg-green-100 text-green-700" :
-                  item.status_perbaikan === "Proses Perbaikan" ? "bg-yellow-100 text-yellow-700" :
-                  item.status_perbaikan === "Ditolak" ? "bg-red-100 text-red-700" :
-                  "bg-gray-200 text-gray-700"
-                }`}>
-                  {item.status_perbaikan}
-                </span>
+
+                {/* Bagian Bawah: Catatan / Detail Perbaikan dari Admin */}
+                {item.keterangan_perbaikan && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-sm font-semibold text-[#1c3163] mb-2">Catatan / Detail Perbaikan:</p>
+                    <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                      {item.keterangan_perbaikan}
+                    </div>
+                  </div>
+                )}
+
               </div>
             ))
           ) : (

@@ -158,17 +158,54 @@ export default function ManajemenPenggunaView() {
     try {
       setLoading(true);
 
-      // --- VALIDASI PEGAWAI BARU ---
-      if (!editPegawaiId && (!pegawaiForm.email_pegawai || !pegawaiForm.password)) {
-        showToast("Email dan Password wajib diisi untuk pegawai baru!", "error");
+      if (!editPegawaiId && (!pegawaiForm.email_pegawai && !pegawaiForm.password && !pegawaiForm.nama_pegawai && !pegawaiForm.nomor_telepon_pegawai)) {
+        showToast("Harap mengisi semua field wajib!", "error");
         setLoading(false);
         return;
+      }
+
+      // --- VALIDASI PEGAWAI BARU ---
+      if (!editPegawaiId) {
+        if (!pegawaiForm.email_pegawai || !pegawaiForm.password) {
+          showToast("Email dan Password wajib diisi untuk pegawai baru!", "error");
+          setLoading(false);
+          return;
+        }
+
+        // [BARU] CEK KETERSEDIAAN EMAIL DI TABEL PEGAWAI DAN PENYEWA
+        const { data: cekPegawai } = await supabase.from("pegawai").select("email_pegawai").eq("email_pegawai", pegawaiForm.email_pegawai).maybeSingle();
+        const { data: cekPenyewa } = await supabase.from("penyewa").select("email_penyewa").eq("email_penyewa", pegawaiForm.email_pegawai).maybeSingle();
+
+        if (cekPegawai || cekPenyewa) {
+          showToast("Email sudah terdaftar di sistem!", "error");
+          setLoading(false);
+          return;
+        }
       }
 
       // ============================================
       // UPDATE
       // ============================================
       if (editPegawaiId) {
+
+        if (!pegawaiForm.nama_pegawai && !pegawaiForm.nomor_telepon_pegawai) {
+          showToast("Harap mengisi semua field wajib!", "error");
+          setLoading(false);
+          return;
+        }
+
+        if (!pegawaiForm.nama_pegawai) {
+          showToast("Nama pegawai wajib diisi!", "error");
+          setLoading(false);
+          return;
+        }
+
+        if (!pegawaiForm.nomor_telepon_pegawai) {
+          showToast("Nomor telepon pegawai wajib diisi!", "error");
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase
           .from("pegawai")
           .update({
@@ -181,7 +218,7 @@ export default function ManajemenPenggunaView() {
           .eq("id_pegawai", editPegawaiId);
 
         if (error) throw error;
-        showToast("Pegawai berhasil diupdate", "success");
+        showToast("Pegawai berhasil diubah", "success");
       } else {
         // ============================================
         // INSERT AUTH USER
@@ -244,10 +281,47 @@ export default function ManajemenPenggunaView() {
       setLoading(true);
 
       // --- VALIDASI PENYEWA BARU ---
-      if (!editPenyewaId && (!penyewaForm.email_penyewa || !penyewaForm.password)) {
-        showToast("Email dan Password wajib diisi untuk penyewa baru!", "error");
-        setLoading(false);
-        return;
+      
+      if (!editPenyewaId) {
+        if (!penyewaForm.email_penyewa && !penyewaForm.password && !penyewaForm.nama_penyewa && !penyewaForm.nomor_telepon_penyewa && !fileKtp) {
+          showToast("Harap mengisi semua field wajib!", "error");
+          setLoading(false);
+          return;
+        }
+        
+        if (!penyewaForm.email_penyewa || !penyewaForm.password) {
+          showToast("Email dan Password wajib diisi untuk penyewa baru!", "error");
+          setLoading(false);
+          return;
+        }
+
+        if (!penyewaForm.nama_penyewa) {
+          showToast("Nama penyewa wajib diisi untuk penyewa baru!", "error");
+          setLoading(false);
+          return;
+        }
+
+        if (!penyewaForm.nomor_telepon_penyewa) {
+          showToast("Nomor telepon penyewa wajib diisi untuk penyewa baru!", "error");
+          setLoading(false);
+          return;
+        }
+      
+        if (!fileKtp) {
+          showToast("Foto KTP wajib diunggah untuk penyewa baru!", "error");
+          setLoading(false);
+          return;
+        }
+
+        // [BARU] CEK KETERSEDIAAN EMAIL SEBELUM UPLOAD KTP
+        const { data: cekPegawai } = await supabase.from("pegawai").select("email_pegawai").eq("email_pegawai", penyewaForm.email_penyewa).maybeSingle();
+        const { data: cekPenyewa } = await supabase.from("penyewa").select("email_penyewa").eq("email_penyewa", penyewaForm.email_penyewa).maybeSingle();
+
+        if (cekPegawai || cekPenyewa) {
+          showToast("Email sudah terdaftar di sistem! ", "error");
+          setLoading(false);
+          return;
+        }
       }
 
       // 1. Upload KTP Image jika ada file baru yang dipilih
@@ -290,6 +364,24 @@ export default function ManajemenPenggunaView() {
       // UPDATE PENYEWA
       // ============================================
       if (editPenyewaId) {
+        if (!penyewaForm.nama_penyewa && !penyewaForm.nomor_telepon_penyewa) {
+          showToast("Harap mengisi semua field wajib!", "error");
+          setLoading(false);
+          return;
+        }
+
+        if (!penyewaForm.nama_penyewa) {
+          showToast("Nama penyewa wajib diisi!", "error");
+          setLoading(false);
+          return;
+        }
+
+        if (!penyewaForm.nomor_telepon_penyewa) {
+          showToast("Nomor telepon penyewa wajib diisi!", "error");
+          setLoading(false);
+          return;
+        }
+        
         const { error } = await supabase
           .from("penyewa")
           .update(payload)
@@ -299,7 +391,6 @@ export default function ManajemenPenggunaView() {
 
         // --- TRIGGER OTOMATIS: JIKA STATUS NON-AKTIF ATAU DITANGGUHKAN ---
         if (payload.status_penyewa === "Non-Aktif" || payload.status_penyewa === "Ditangguhkan") {
-          
           // Cari data sewa yang masih berjalan (bukan "Berakhir")
           const { data: sewaAktif, error: sewaError } = await supabase
             .from("sewa")
@@ -310,48 +401,22 @@ export default function ManajemenPenggunaView() {
           if (sewaAktif && sewaAktif.length > 0) {
             for (const sewa of sewaAktif) {
               // 1. Update Sewa menjadi "Berakhir"
-              await supabase
-                .from("sewa")
-                .update({ status_sewa: "Berakhir" })
-                .eq("id_sewa", sewa.id_sewa);
-
+              await supabase.from("sewa").update({ status_sewa: "Berakhir" }).eq("id_sewa", sewa.id_sewa);
               // 2. Update Reservasi menjadi "Selesai"
-              if (sewa.id_reservasi) {
-                await supabase
-                  .from("reservasi")
-                  .update({ status_reservasi: "Selesai" })
-                  .eq("id_reservasi", sewa.id_reservasi);
-              }
-
+              if (sewa.id_reservasi) await supabase.from("reservasi").update({ status_reservasi: "Selesai" }).eq("id_reservasi", sewa.id_reservasi);
               // 3. Update Kamar menjadi "Tersedia"
-              if (sewa.id_kamar) {
-                await supabase
-                  .from("kamar")
-                  .update({ status_kamar: "Tersedia" })
-                  .eq("id_kamar", sewa.id_kamar);
-              }
-
-              // 4. Update Tagihan menjadi "Kadaluarsa" (Khusus yang belum dibayar)
-              await supabase
-                .from("tagihan")
-                .update({ status_tagihan: "Kadaluarsa" })
-                .eq("id_sewa", sewa.id_sewa)
-                .eq("status_tagihan", "Belum Dibayar");
+              if (sewa.id_kamar) await supabase.from("kamar").update({ status_kamar: "Tersedia" }).eq("id_kamar", sewa.id_kamar);
+              // 4. Update Tagihan menjadi "Kadaluarsa"
+              await supabase.from("tagihan").update({ status_tagihan: "Kadaluarsa" }).eq("id_sewa", sewa.id_sewa).eq("status_tagihan", "Belum Dibayar");
             }
           }
         }
 
-        showToast("Penyewa berhasil diupdate", "success");
+        showToast("Penyewa berhasil diubah", "success");
       } else {
         // ============================================
-        // INSERT AUTH USER
+        // INSERT AUTH USER (Baru)
         // ============================================
-        if (!fotoKtpUrl) {
-          showToast("Foto KTP wajib diunggah untuk penyewa baru!", "error");
-          setLoading(false);
-          return;
-        }
-
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: penyewaForm.email_penyewa,
           password: penyewaForm.password,

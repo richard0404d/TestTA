@@ -312,7 +312,7 @@ export default function ManajemenLaporanKerusakan() {
               </div>
 
               <div>
-                <label className="font-semibold text-gray-700 text-sm">Catatan / Detail Perbaikan <span className="text-gray-400 font-normal">(Disarankan)</span></label>
+                <label className="font-semibold text-gray-700 text-sm">Catatan / Detail Perbaikan</label>
                 <textarea
                   value={editForm.keterangan_perbaikan}
                   onChange={(e) => setEditForm({ ...editForm, keterangan_perbaikan: e.target.value })}
