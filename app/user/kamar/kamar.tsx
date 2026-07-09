@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { CheckCircle, AlertCircle, X, BedDouble, Users, DoorOpen, Info } from "lucide-react";
+import { CheckCircle, AlertCircle, X, BedDouble, Users, DoorOpen, Info, History, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function KamarPenyewaPage() {
@@ -12,14 +12,19 @@ export default function KamarPenyewaPage() {
 
   const [loading, setLoading] = useState(true);
   
-  // NEW: State untuk menampung banyak sewa/kamar aktif
+  // State untuk menampung banyak sewa/kamar aktif & Riwayat
   const [sewaList, setSewaList] = useState<any[]>([]);
+  const [riwayatSewa, setRiwayatSewa] = useState<any[]>([]);
   const [selectedSewaId, setSelectedSewaId] = useState<string>("");
 
   const [sewa, setSewa] = useState<any>(null);
   const [reservasi, setReservasi] = useState<any>(null);
   const [kamar, setKamar] = useState<any>(null);
   const [fasilitas, setFasilitas] = useState<any[]>([]);
+
+  // PAGINATION STATE
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // State Modals
   const [showModalPenghuni, setShowModalPenghuni] = useState(false);
@@ -48,7 +53,7 @@ export default function KamarPenyewaPage() {
   };
 
   // ============================================
-  // LOAD DAFTAR KAMAR AKTIF (Langkah 1)
+  // LOAD DAFTAR KAMAR AKTIF & HISTORI (Langkah 1)
   // ============================================
   const fetchSewaList = async () => {
     setLoading(true);
@@ -56,19 +61,24 @@ export default function KamarPenyewaPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Mengambil semua sewa aktif tanpa .single()
-      const { data: sewaData } = await supabase
+      // Mengambil SEMUA riwayat sewa milik penyewa ini (Aktif & Berakhir)
+      const { data: semuaSewa } = await supabase
         .from("sewa")
         .select("*")
         .eq("id_penyewa", user.id)
-        .eq("status_sewa", "Aktif");
+        .order("id_sewa", { ascending: false });
 
-      setSewaList(sewaData || []);
+      // Simpan seluruh data untuk tabel histori
+      setRiwayatSewa(semuaSewa || []);
 
-      if (sewaData && sewaData.length > 0) {
+      // Filter HANYA yang aktif untuk bagian atas (Kamar Saya)
+      const sewaAktif = (semuaSewa || []).filter(s => s.status_sewa === "Aktif");
+      setSewaList(sewaAktif);
+
+      if (sewaAktif.length > 0) {
         // Jika belum ada yang dipilih, pilih kamar pertama secara default
-        if (!selectedSewaId) {
-          setSelectedSewaId(String(sewaData[0].id_sewa));
+        if (!selectedSewaId || !sewaAktif.find(s => String(s.id_sewa) === selectedSewaId)) {
+          setSelectedSewaId(String(sewaAktif[0].id_sewa));
         }
       } else {
         setSewa(null);
@@ -185,15 +195,23 @@ export default function KamarPenyewaPage() {
     }
   };
 
-  // ============================================
+// ============================================
   // ACTION: KELUAR KOS
   // ============================================
   const handleKeluarKos = async () => {
     setIsProcessing(true);
     try {
+      // 1. Dapatkan tanggal hari ini (Format YYYY-MM-DD menyesuaikan zona waktu lokal)
+      const today = new Date();
+      const tanggalHariIni = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split("T")[0];
+
+      // 2. Update status sewa DAN tanggal berakhirnya
       const { error: errSewa } = await supabase
         .from("sewa")
-        .update({ status_sewa: "Berakhir" })
+        .update({ 
+          status_sewa: "Berakhir",
+          tanggal_berakhir_sewa: tanggalHariIni // <-- INI TAMBAHANNYA
+        })
         .eq("id_sewa", sewa.id_sewa);
       if (errSewa) throw errSewa;
 
@@ -212,7 +230,7 @@ export default function KamarPenyewaPage() {
       showToast("Anda telah berhasil menyelesaikan masa sewa kos.", "success");
       setShowModalKeluar(false);
 
-      // Memuat ulang daftar kamar aktif yang tersisa
+      // Memuat ulang daftar kamar (aktif dan histori)
       setTimeout(() => {
         setSelectedSewaId("");
         fetchSewaList();
@@ -225,23 +243,36 @@ export default function KamarPenyewaPage() {
     }
   };
 
+  // ============================================
+  // PAGINATION LOGIC
+  // ============================================
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentRiwayat = riwayatSewa.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(riwayatSewa.length / itemsPerPage);
+
   // Kalkulasi Harga
   const hargaTotal = kamar && reservasi 
     ? Number(kamar.harga_sewa_kamar) + (reservasi.jumlah_penghuni === 2 ? Number(kamar.harga_tambahan_penyewa) : 0)
     : 0;
 
-  if (loading) return <div className="p-8 text-center text-gray-500 mt-20">Memuat data kamar...</div>;
+  // Helper Format Tanggal
+  const formatTanggal = (dateStr: string | null) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
+  };
 
-  if (sewaList.length === 0 || !sewa) return (
-    <div className="max-w-2xl mx-auto p-6 md:pt-20 text-center space-y-4">
-      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-        <BedDouble size={40} className="text-gray-400" />
-      </div>
-      <h2 className="text-2xl font-bold text-gray-800">Tidak Ada Kamar Aktif</h2>
-      <p className="text-gray-500">Anda belum memiliki kamar yang sedang disewa saat ini.</p>
-      <Button onClick={() => router.push("/user/reservasi")} className="mt-4 bg-[#2C5EBF]">Cari Kamar Sekarang</Button>
-    </div>
-  );
+  // Helper Status Badge Histori
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Aktif": return "bg-green-100 text-green-700 border-green-200";
+      case "Berakhir": return "bg-gray-100 text-gray-700 border-gray-200";
+      case "Menunggu Pembayaran": return "bg-yellow-100 text-yellow-700 border-yellow-200";
+      default: return "bg-gray-100 text-gray-700 border-gray-200";
+    }
+  };
+
+  if (loading) return <div className="p-8 text-center text-gray-500 mt-20">Memuat data kamar...</div>;
 
   return (
     <div className="max-w-5xl mx-auto p-5 space-y-6 md:pt-10 mb-20 relative">
@@ -254,10 +285,13 @@ export default function KamarPenyewaPage() {
         </div>
       )}
 
+      {/* ============================================ */}
+      {/* BAGIAN ATAS: INFORMASI KAMAR AKTIF SAAT INI */}
+      {/* ============================================ */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
         <h1 className="text-3xl font-bold text-gray-800">Kamar Saya</h1>
         
-        {/* DROPDOWN PILIHAN KAMAR (Hanya tampil jika kamar lebih dari 1) */}
+        {/* DROPDOWN PILIHAN KAMAR (Hanya tampil jika kamar aktif > 1) */}
         {sewaList.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-gray-500 whitespace-nowrap">Pilih Kamar:</span>
@@ -276,130 +310,216 @@ export default function KamarPenyewaPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* KOLOM KIRI: INFO KAMAR */}
-        <div className="md:col-span-2 space-y-6">
-          
-          <div className="bg-white border rounded-2xl p-6 shadow-sm">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <p className="text-gray-500 font-medium">Nomor Kamar</p>
-                <h2 className="text-5xl font-extrabold text-[#2C5EBF] mt-1">{sewa.id_kamar}</h2>
+      {sewaList.length > 0 && sewa ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* KOLOM KIRI: INFO KAMAR */}
+          <div className="md:col-span-2 space-y-6">
+            
+            <div className="bg-white border rounded-2xl p-6 shadow-sm">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <p className="text-gray-500 font-medium">Nomor Kamar</p>
+                  <h2 className="text-5xl font-extrabold text-[#2C5EBF] mt-1">{sewa.id_kamar}</h2>
+                </div>
+                <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
+                  Status: {sewa.status_sewa}
+                </span>
               </div>
-              <span className="bg-green-100 text-green-700 px-4 py-1.5 rounded-full text-sm font-semibold">
-                Status: {sewa.status_sewa}
-              </span>
+
+              <div className="grid grid-cols-2 gap-4 border-t pt-6">
+                <div>
+                  <p className="text-sm text-gray-500">Tanggal Masuk</p>
+                  <p className="font-semibold text-gray-800 mt-1">
+                    {formatTanggal(reservasi?.tanggal_masuk)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Berakhir Pada</p>
+                  <p className="font-semibold text-gray-800 mt-1">
+                    {formatTanggal(sewa.tanggal_berakhir_sewa)}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 border-t pt-6">
-              <div>
-                <p className="text-sm text-gray-500">Tanggal Masuk</p>
-                <p className="font-semibold text-gray-800 mt-1">
-                  {reservasi?.tanggal_masuk ? new Date(reservasi.tanggal_masuk).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Berakhir Pada</p>
-                <p className="font-semibold text-gray-800 mt-1">
-                  {sewa.tanggal_berakhir_sewa ? new Date(sewa.tanggal_berakhir_sewa).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
-                </p>
-              </div>
+            {/* FASILITAS */}
+            <div className="bg-white border rounded-2xl p-6 shadow-sm">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Fasilitas Kamar</h3>
+              {fasilitas.length === 0 ? (
+                <p className="text-gray-400 text-sm">Belum ada data fasilitas.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {fasilitas.map((f, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-3 border rounded-xl bg-gray-50">
+                      <span className="font-medium text-gray-700">{f.fasilitas?.nama_fasilitas}</span>
+                      <span className={`text-xs px-2 py-1 rounded-md font-semibold ${statusColors[f.kondisi_fasilitas] || 'bg-gray-100 text-gray-700'}`}>
+                        {f.kondisi_fasilitas}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
 
-          {/* FASILITAS */}
-          <div className="bg-white border rounded-2xl p-6 shadow-sm">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Fasilitas Kamar</h3>
-            {fasilitas.length === 0 ? (
-              <p className="text-gray-400 text-sm">Belum ada data fasilitas.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {fasilitas.map((f, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 border rounded-xl bg-gray-50">
-                    <span className="font-medium text-gray-700">{f.fasilitas?.nama_fasilitas}</span>
-                    <span className={`text-xs px-2 py-1 rounded-md font-semibold ${statusColors[f.kondisi_fasilitas] || 'bg-gray-100 text-gray-700'}`}>
-                      {f.kondisi_fasilitas}
-                    </span>
+          {/* KOLOM KANAN: PENGHUNI & ACTION */}
+          <div className="space-y-6">
+            
+            {/* HARGA & PENGHUNI */}
+            <div className="bg-white border rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Users size={20} className="text-[#2C5EBF]" /> Penghuni
+              </h3>
+              
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
+                <p className="text-sm text-blue-600/80 font-medium">Harga Kamar Saat Ini</p>
+                <p className="text-2xl font-bold text-[#1c3163] mt-1">Rp {hargaTotal.toLocaleString('id-ID')}</p>
+                <p className="text-xs text-blue-600/60 mt-1">*(Sudah menyesuaikan jumlah penghuni)</p>
+              </div>
+
+              {reservasi && (
+                <div className="space-y-3">
+                  <div className="flex justify-between border-b pb-2">
+                    <span className="text-gray-500">Jumlah Penghuni</span>
+                    <span className="font-bold text-gray-800">{reservasi.jumlah_penghuni} Orang</span>
                   </div>
+                  {reservasi.jumlah_penghuni === 2 && (
+                    <>
+                      <div className="flex justify-between border-b pb-2">
+                        <span className="text-gray-500">Penghuni 2</span>
+                        <span className="font-semibold text-gray-800">{reservasi.nama_penghuni2}</span>
+                      </div>
+                      <div className="flex justify-between pb-2">
+                        <span className="text-gray-500">No. Telepon 2</span>
+                        <span className="font-semibold text-gray-800">{reservasi.nomor_telepon2}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <Button 
+                onClick={() => setShowModalPenghuni(true)} 
+                disabled={isUbahPenghuniDisabled}
+                className="w-full mt-6 bg-[#2C5EBF] hover:bg-blue-800 transition"
+              >
+                Ubah Penghuni
+              </Button>
+              
+              {isUbahPenghuniDisabled && reservasi && (
+                <p className="text-xs text-orange-500 mt-3 flex items-start gap-1">
+                  <Info size={14} className="shrink-0 mt-0.5" /> 
+                  Perubahan penghuni hanya dapat dilakukan 1 kali dalam 30 hari. 
+                  (Terakhir diubah: {reservasi.terakhir_ubah_penghuni ? new Date(reservasi.terakhir_ubah_penghuni).toLocaleDateString("id-ID") : "-"})
+                </p>
+              )}
+            </div>
+
+            {/* DANGER ZONE */}
+            <div className="bg-red-50 border border-red-100 rounded-2xl p-6 shadow-sm">
+              <h3 className="text-lg font-bold text-red-800 mb-2 flex items-center gap-2">
+                <DoorOpen size={20} /> Berhenti Sewa
+              </h3>
+              <p className="text-sm text-red-600/80 mb-4">
+                Tindakan ini akan mengakhiri status sewa kamar Anda secara permanen.
+              </p>
+              <Button 
+                onClick={() => setShowModalKeluar(true)} 
+                variant="destructive" 
+                className="w-full"
+              >
+                Keluar Kos
+              </Button>
+            </div>
+
+          </div>
+        </div>
+      ) : (
+        /* JIKA TIDAK ADA KAMAR AKTIF SAMA SEKALI */
+        <div className="max-w-2xl mx-auto p-10 text-center space-y-4 border border-gray-200 rounded-3xl bg-white shadow-sm mt-6">
+          <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
+            <BedDouble size={40} className="text-gray-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800">Tidak Ada Kamar Aktif</h2>
+          <p className="text-gray-500">Anda belum memiliki atau sedang tidak menyewa kamar saat ini.</p>
+          <Button onClick={() => router.push("/user/reservasi")} className="mt-4 bg-[#2C5EBF]">Cari Kamar Sekarang</Button>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* BAGIAN BAWAH: TABEL RIWAYAT / HISTORI SEWA */}
+      {/* ============================================ */}
+      <div className="mt-12 bg-white border border-gray-200 rounded-3xl pt-6 shadow-sm">
+        <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3 px-6 md:px-8">
+          <History size={26} className="text-[#2C5EBF]" /> Riwayat Sewa Kamar
+        </h3>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px] text-left">
+            <thead className="bg-gray-50 border-b border-t border-gray-200 text-gray-600">
+              <tr>
+                <th className="px-6 md:px-8 py-4 font-semibold text-sm">No</th>
+                <th className="px-6 py-4 font-semibold text-sm">Nomor Kamar</th>
+                <th className="px-6 py-4 font-semibold text-sm">Tanggal Masuk</th>
+                <th className="px-6 py-4 font-semibold text-sm">Tanggal Berakhir</th>
+                <th className="px-6 md:px-8 py-4 font-semibold text-sm">Status Sewa</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {riwayatSewa.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-12 text-gray-400">Belum ada riwayat kamar kos.</td>
+                </tr>
+              ) : (
+                currentRiwayat.map((history, index) => (
+                  <tr key={history.id_sewa} className="hover:bg-gray-50/50 transition">
+                    {/* Logika Index untuk menyesuaikan halaman */}
+                    <td className="px-6 md:px-8 py-4 text-gray-600">{index + 1 + indexOfFirstItem}</td>
+                    <td className="px-6 py-4 font-bold text-gray-800">Kamar {history.id_kamar}</td>
+                    <td className="px-6 py-4 text-gray-600">{formatTanggal(history.tanggal_sewa)}</td>
+                    <td className="px-6 py-4 text-gray-600">{formatTanggal(history.tanggal_berakhir_sewa)}</td>
+                    <td className="px-6 md:px-8 py-4">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${getStatusBadge(history.status_sewa)}`}>
+                        {history.status_sewa}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* PAGINATION UI */}
+        {riwayatSewa.length > 0 && (
+          <div className="flex items-center justify-between px-6 md:px-8 py-4 bg-white border-t border-gray-200 rounded-b-3xl">
+            <div className="text-sm text-gray-500">
+              Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, riwayatSewa.length)} dari {riwayatSewa.length} riwayat
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition">
+                <ChevronLeft size={18} />
+              </button>
+              <div className="flex gap-1 hidden sm:flex">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
+                  <button
+                    key={number}
+                    onClick={() => setCurrentPage(number)}
+                    className={`px-3 py-1 rounded-lg border text-sm font-medium transition ${
+                      currentPage === number ? "bg-[#1c3163] text-white border-[#1c3163]" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {number}
+                  </button>
                 ))}
               </div>
-            )}
-          </div>
-
-        </div>
-
-        {/* KOLOM KANAN: PENGHUNI & ACTION */}
-        <div className="space-y-6">
-          
-          {/* HARGA & PENGHUNI */}
-          <div className="bg-white border rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Users size={20} className="text-[#2C5EBF]" /> Penghuni
-            </h3>
-            
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-5">
-              <p className="text-sm text-blue-600/80 font-medium">Harga Kamar Saat Ini</p>
-              <p className="text-2xl font-bold text-[#1c3163] mt-1">Rp {hargaTotal.toLocaleString('id-ID')}</p>
-              <p className="text-xs text-blue-600/60 mt-1">*(Sudah menyesuaikan jumlah penghuni)</p>
+              <button onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-2 rounded-lg border bg-white text-gray-600 disabled:opacity-50 hover:bg-gray-50 transition">
+                <ChevronRight size={18} />
+              </button>
             </div>
-
-            {reservasi && (
-              <div className="space-y-3">
-                <div className="flex justify-between border-b pb-2">
-                  <span className="text-gray-500">Jumlah Penghuni</span>
-                  <span className="font-bold text-gray-800">{reservasi.jumlah_penghuni} Orang</span>
-                </div>
-                {reservasi.jumlah_penghuni === 2 && (
-                  <>
-                    <div className="flex justify-between border-b pb-2">
-                      <span className="text-gray-500">Penghuni 2</span>
-                      <span className="font-semibold text-gray-800">{reservasi.nama_penghuni2}</span>
-                    </div>
-                    <div className="flex justify-between pb-2">
-                      <span className="text-gray-500">No. Telepon 2</span>
-                      <span className="font-semibold text-gray-800">{reservasi.nomor_telepon2}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            <Button 
-              onClick={() => setShowModalPenghuni(true)} 
-              disabled={isUbahPenghuniDisabled}
-              className="w-full mt-6 bg-[#2C5EBF] hover:bg-blue-800 transition"
-            >
-              Ubah Penghuni
-            </Button>
-            
-            {isUbahPenghuniDisabled && reservasi && (
-              <p className="text-xs text-orange-500 mt-3 flex items-start gap-1">
-                <Info size={14} className="shrink-0 mt-0.5" /> 
-                Perubahan penghuni hanya dapat dilakukan 1 kali dalam 30 hari. 
-                (Terakhir diubah: {reservasi.terakhir_ubah_penghuni ? new Date(reservasi.terakhir_ubah_penghuni).toLocaleDateString("id-ID") : "-"})
-              </p>
-            )}
           </div>
-
-          {/* DANGER ZONE */}
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-red-800 mb-2 flex items-center gap-2">
-              <DoorOpen size={20} /> Berhenti Sewa
-            </h3>
-            <p className="text-sm text-red-600/80 mb-4">
-              Tindakan ini akan mengakhiri status sewa kamar Anda secara permanen.
-            </p>
-            <Button 
-              onClick={() => setShowModalKeluar(true)} 
-              variant="destructive" 
-              className="w-full"
-            >
-              Keluar Kos
-            </Button>
-          </div>
-
-        </div>
+        )}
       </div>
 
       {/* ============================================ */}

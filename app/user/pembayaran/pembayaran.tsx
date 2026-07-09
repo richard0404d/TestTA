@@ -79,51 +79,53 @@ export default function PembayaranPage() {
       const user = authData.user;
       if (!user) return;
 
-      const { data: sewaUser } = await supabase
+      // 1. Ambil SEMUA data sewa milik penyewa ini (termasuk yang sudah "Berakhir")
+      const { data: semuaSewaUser } = await supabase
         .from("sewa")
         .select(`id_sewa, tanggal_berakhir_sewa, status_sewa`)
-        .eq("id_penyewa", user.id)
-        .neq("status_sewa", "Berakhir");
+        .eq("id_penyewa", user.id);
 
       const { data: penyewaData } = await supabase.from("penyewa").select("*").eq("id_penyewa", user.id).single();
       setPenyewa(penyewaData);
 
+      // 2. Ambil SEMUA pembayaran, urutkan dari yang terbaru
       const { data: pembayaranData } = await supabase
         .from("pembayaran")
         .select(`*, tagihan (*, sewa (*))`)
         .order("tanggal_pembayaran", { ascending: false });
 
+      // 3. Cocokkan histori pembayaran dengan SEMUA riwayat sewa (Agar yang "Berakhir" tetap muncul)
       const filteredHistory = (pembayaranData || []).filter((item) =>
-        sewaUser?.some((s) => s.id_sewa === item.tagihan?.id_sewa)
+        semuaSewaUser?.some((s) => s.id_sewa === item.tagihan?.id_sewa)
       );
       setHistories(filteredHistory);
 
+      // 4. Filter id_sewa yang HANYA AKTIF untuk mengecek tagihan yang belum dibayar
+      const sewaAktifIds = semuaSewaUser?.filter(s => s.status_sewa !== "Berakhir").map(s => s.id_sewa) || [];
+
+      // 5. Ambil tagihan "Belum Dibayar" hanya untuk kamar yang saat ini aktif
       const { data: tagihanData, error: tagihanError } = await supabase
         .from("tagihan")
         .select(`*, sewa (*, kamar (*))`)
-        .in("id_sewa", sewaUser?.map((item) => item.id_sewa) || [])
+        .in("id_sewa", sewaAktifIds.length > 0 ? sewaAktifIds : [0]) // Hindari error array kosong
         .eq("status_tagihan", "Belum Dibayar")
         .order("created_at", { ascending: false });
 
       if (!tagihanError && tagihanData && tagihanData.length > 0) {
+        // Filter ganda: pastikan tagihan belum dilunasi di tabel pembayaran
         const tagihanBelumLunas = tagihanData.filter(t => 
           !filteredHistory.some(h => h.id_tagihan === t.id_tagihan && h.status_pembayaran === "Berhasil")
         );
         
         setSemuaTagihan(tagihanBelumLunas);
         
-        // ============================================
-        // PERBAIKAN: DETEKSI URL PARAMETER
-        // ============================================
         const urlParams = new URLSearchParams(window.location.search);
         const tagihanIdDariUrl = urlParams.get("tagihan_id");
 
         if (tagihanBelumLunas.length > 0) {
           if (tagihanIdDariUrl && tagihanBelumLunas.some(t => String(t.id_tagihan) === tagihanIdDariUrl)) {
-            // Jika ada parameter dari halaman tagihan, pilih otomatis
             setSelectedTagihanId(tagihanIdDariUrl);
           } else if (!selectedTagihanId) {
-            // Jika tidak ada parameter, pilih yang pertama di array
             setSelectedTagihanId(String(tagihanBelumLunas[0].id_tagihan));
           }
         }
