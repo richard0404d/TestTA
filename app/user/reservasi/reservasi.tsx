@@ -332,7 +332,8 @@ export default function Reservasi() {
             tanggal_reservasi: new Date().toISOString(),
             tanggal_masuk: form.tanggal,
             status_reservasi: "Menunggu Pembayaran",
-            expired_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            // expired_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            expired_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         }])
         .select().single();
 
