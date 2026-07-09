@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 export default function LaporanKerusakan() {
   const supabase = createClient();
@@ -36,6 +36,33 @@ export default function LaporanKerusakan() {
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
+  };
+
+// ============================================
+  // HELPER: FORMAT TANGGAL & JAM
+  // ============================================
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return "-";
+    
+    // 1. Ubah spasi menjadi 'T' agar sesuai standar format tanggal web
+    let safeDateString = dateString.replace(" ", "T");
+    
+    // 2. KUNCI PERBAIKAN: Jika teks dari Supabase tidak memiliki 'Z' (zona waktu),
+    // kita tambahkan 'Z' secara paksa agar terbaca sebagai UTC.
+    if (!safeDateString.endsWith("Z") && !safeDateString.includes("+")) {
+      safeDateString += "Z";
+    }
+
+    // 3. Gunakan cara Date bawaan yang sebelumnya sudah berhasil
+    const date = new Date(safeDateString);
+    
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).replace(':', '.') + " WIB";
   };
 
   useEffect(() => {
@@ -139,7 +166,6 @@ export default function LaporanKerusakan() {
       // ============================================
       // VALIDASI ANTI-SPAM (LIVE DATABASE CHECK)
       // ============================================
-      // Mengecek kondisi terbaru fasilitas langsung dari database, mencegah spam ganda
       const { data: cekFasilitas, error: errCek } = await supabase
         .from("detail_fasilitas_kamar")
         .select("kondisi_fasilitas")
@@ -219,22 +245,30 @@ export default function LaporanKerusakan() {
         <div className="space-y-4">
           {currentLaporan.length > 0 ? (
             currentLaporan.map((item) => (
-              <div key={item.id_kerusakan} className="border rounded-xl p-5 flex flex-col gap-3 bg-gray-50 hover:bg-gray-100 transition shadow-sm">
+              <div key={item.id_kerusakan} className="border rounded-xl p-5 flex flex-col gap-3 bg-gray-50 hover:bg-gray-100 transition shadow-sm relative">
                 
                 {/* Bagian Atas: Detail Keluhan Penyewa & Status */}
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex-1 pr-4">
                     <p className="font-semibold text-gray-800 text-lg">
                       {item.fasilitas?.nama_fasilitas || "Fasilitas"} 
                       <span className="text-gray-500 font-normal text-sm ml-2">- Kamar {item.id_kamar}</span>
                     </p>
-                    {/* BAGIAN INI SUDAH DIPERBAIKI (HAPUS CLASS BLOCK) */}
-                    <p className="text-sm text-gray-600 mt-2">
+                    
+                    {/* TANGGAL DAN JAM PEMBUATAN LAPORAN (PENYEWA) */}
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1 mb-3">
+                      <Clock size={13} />
+                      <span>Dilaporkan: {formatDateTime(item.created_at)}</span>
+                    </div>
+
+                    <p className="text-sm text-gray-600">
                       <span className="font-medium text-gray-800 mr-1">Keluhan Anda:</span> 
                       {item.keterangan_kerusakan}
                     </p>
                   </div>
-                  <span className={`text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap ml-4 border ${
+
+                  {/* Status Badge */}
+                  <span className={`text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap border shrink-0 ${
                     item.status_perbaikan === "Sudah Diperbaiki" ? "bg-green-50 text-green-700 border-green-200" :
                     item.status_perbaikan === "Proses Perbaikan" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
                     item.status_perbaikan === "Ditolak" ? "bg-red-50 text-red-700 border-red-200" :
@@ -247,7 +281,14 @@ export default function LaporanKerusakan() {
                 {/* Bagian Bawah: Catatan / Detail Perbaikan dari Admin */}
                 {item.keterangan_perbaikan && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
-                    <p className="text-sm font-semibold text-[#1c3163] mb-2">Catatan / Detail Perbaikan:</p>
+                    <div className="flex justify-between items-end mb-2">
+                      <p className="text-sm font-semibold text-[#1c3163]">Catatan / Detail Perbaikan:</p>
+                      {/* TANGGAL DAN JAM CATATAN ADMIN MENGGUNAKAN KOLOM tanggal_perbaikan */}
+                      <div className="flex items-center gap-1 text-[11px] text-gray-400">
+                        <Clock size={11} />
+                        <span>Direspons: {formatDateTime(item.tanggal_perbaikan)}</span>
+                      </div>
+                    </div>
                     <div className="bg-white border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
                       {item.keterangan_perbaikan}
                     </div>

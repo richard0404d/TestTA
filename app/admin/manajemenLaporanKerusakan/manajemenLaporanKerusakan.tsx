@@ -94,12 +94,11 @@ export default function ManajemenLaporanKerusakan() {
   };
 
   // ============================================
-  // PROSES UPDATE DATA (Dengan keterangan & Tanggal)
+  // PROSES UPDATE DATA (Selalu Update Tanggal)
   // ============================================
   const handleSubmitEdit = async () => {
     if (!editId) return;
 
-    // --- TAMBAHAN VALIDASI ---
     if (!editForm.keterangan_perbaikan || editForm.keterangan_perbaikan.trim() === "") {
       return showToast("Catatan atau detail perbaikan wajib diisi!", "error");
     }
@@ -114,12 +113,9 @@ export default function ManajemenLaporanKerusakan() {
         status_perbaikan: editForm.status_perbaikan,
         keterangan_perbaikan: editForm.keterangan_perbaikan,
         id_pegawai: user?.id,
+        // PERBAIKAN: Selalu perbarui tanggal_perbaikan setiap kali tombol simpan diklik
+        tanggal_perbaikan: new Date().toISOString(), 
       };
-
-      // Jika statusnya sudah final (Diperbaiki / Ditolak), simpan tanggal perbaikannya
-      if (editForm.status_perbaikan === "Sudah Diperbaiki" || editForm.status_perbaikan === "Ditolak") {
-        payload.tanggal_perbaikan = new Date().toISOString();
-      }
 
       const { error } = await supabase
         .from("laporan_kerusakan")
@@ -146,6 +142,10 @@ export default function ManajemenLaporanKerusakan() {
       showToast("Laporan berhasil diperbarui!", "success");
       setIsEditModalOpen(false);
       setEditId(null);
+      
+      // Tutup modal detail jika sedang terbuka agar datanya tidak basi
+      setSelectedDetail(null); 
+      
       getLaporan(); // Refresh data tabel
     } catch (err: any) {
       console.error(err);
@@ -156,7 +156,7 @@ export default function ManajemenLaporanKerusakan() {
   };
 
   // ============================================
-  // HELPERS
+  // HELPERS (SUDAH DIPERBAIKI ZONA WAKTUNYA)
   // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -165,7 +165,22 @@ export default function ManajemenLaporanKerusakan() {
 
   function formatTanggal(tanggal: string | null) {
     if (!tanggal) return "-";
-    return new Date(tanggal).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute:"2-digit" });
+    
+    let safeDateString = tanggal.replace(" ", "T");
+    if (!safeDateString.endsWith("Z") && !safeDateString.includes("+")) {
+      safeDateString += "Z";
+    }
+
+    const date = new Date(safeDateString);
+    return date.toLocaleDateString("id-ID", {
+      timeZone: "Asia/Jakarta",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).replace(':', '.') + " WIB";
   }
 
   const getStatusColor = (status: string) => {
@@ -183,7 +198,6 @@ export default function ManajemenLaporanKerusakan() {
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
-          {/* Ubah font-medium menjadi font-semibold atau font-bold */}
           <p className="font-semibold">{toast.message}</p> 
         </div>
       )}
@@ -219,7 +233,6 @@ export default function ManajemenLaporanKerusakan() {
                     <td className="px-6 py-4 text-gray-600">{item.fasilitas?.nama_fasilitas || "-"}</td>
                     <td className="px-6 py-4 text-gray-600 text-sm">{formatTanggal(item.created_at)}</td>
                     
-                    {/* HANYA MENAMPILKAN STATUS (TEXT/BADGE) SEKARANG */}
                     <td className="px-6 py-4">
                       <div className="flex justify-center">
                         <span className={`whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold border ${getStatusColor(item.status_perbaikan)}`}>
@@ -228,7 +241,6 @@ export default function ManajemenLaporanKerusakan() {
                       </div>
                     </td>
                     
-                    {/* AKSI (MATA DAN PENSIL) */}
                     <td className="px-6 py-4">
                       <div className="flex justify-center items-center gap-2">
                         <button 
@@ -316,7 +328,7 @@ export default function ManajemenLaporanKerusakan() {
                 <textarea
                   value={editForm.keterangan_perbaikan}
                   onChange={(e) => setEditForm({ ...editForm, keterangan_perbaikan: e.target.value })}
-                  placeholder="Misal: Sudah diganti dengan lampu baru"
+                  placeholder="Misal: Sedang memanggil tukang ledeng..."
                   className="w-full border border-gray-300 rounded-xl p-4 mt-2 h-28 bg-white focus:ring-2 focus:ring-[#1c3163]/30 outline-none transition resize-none"
                 />
               </div>
@@ -420,7 +432,7 @@ export default function ManajemenLaporanKerusakan() {
                 </div>
 
                 <div>
-                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Waktu Penyelesaian</p>
+                  <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Terakhir Diperbarui</p>
                   <p className="font-bold text-gray-800 text-sm">{formatTanggal(selectedDetail.tanggal_perbaikan)}</p>
                 </div>
               </div>
