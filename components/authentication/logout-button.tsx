@@ -4,13 +4,11 @@ import { LogOut } from "lucide-react";
 
 export function LogoutButton() {
   const logout = async () => {
-    // 1. Bersihkan sisa-sisa data (seperti role) di browser lokal ini
+
     localStorage.clear();
 
-    // 2. Panggil API jalur belakang untuk menghapus Cookies di browser ini saja
     await fetch("/api/auth/logout", { method: "POST" });
 
-    // 3. Hard Redirect: Memaksa browser muat ulang halaman dari awal
     window.location.href = "/authentication/sign-in";
   };
 

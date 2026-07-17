@@ -5,14 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Eye, ChevronLeft, ChevronRight, XCircle, CheckCircle, AlertCircle, X } from "lucide-react"; // Menambahkan import icon untuk pop-up
 
 export default function ManajemenReservasi() {
-  // ============================================
-  // SUPABASE
-  // ============================================
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [reservasi, setReservasi] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailData, setDetailData] = useState<any | null>(null);
@@ -25,17 +19,11 @@ export default function ManajemenReservasi() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // ============================================
-  // HELPER TOAST (POP-UP PESAN)
-  // ============================================
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
   };
 
-  // ============================================
-  // GET RESERVASI
-  // ============================================
   const getReservasi = async () => {
     try {
       setLoading(true);
@@ -68,7 +56,6 @@ export default function ManajemenReservasi() {
         return;
       }
 
-      // JOIN MANUAL
       const finalData = reservasiData.map((item: any) => {
         const penyewa = penyewaData.find(
           (p: any) => p.id_penyewa === item.id_penyewa
@@ -91,9 +78,6 @@ export default function ManajemenReservasi() {
     getReservasi();
   }, []);
 
-  // ============================================
-  // HANDLE BATALKAN RESERVASI (CASCADE UPDATE)
-  // ============================================
   const executeBatalkanReservasi = async () => {
     if (!cancelData) return;
     const { id_reservasi, id_kamar } = cancelData;
@@ -101,14 +85,12 @@ export default function ManajemenReservasi() {
     try {
       setLoading(true);
 
-      // 1. UBAH STATUS RESERVASI -> Batal
       const { error: errorReservasi } = await supabase
         .from("reservasi")
         .update({ status_reservasi: "Batal" })
         .eq("id_reservasi", id_reservasi);
       if (errorReservasi) throw errorReservasi;
 
-      // 2. KEMBALIKAN KAMAR -> Tersedia
       if (id_kamar) {
         const { error: errorKamar } = await supabase
           .from("kamar")
@@ -117,7 +99,6 @@ export default function ManajemenReservasi() {
         if (errorKamar) throw errorKamar;
       }
 
-      // 3. CARI DATA SEWA (Berdasarkan id_reservasi)
       const { data: sewaData } = await supabase
         .from("sewa")
         .select("id_sewa")
@@ -127,13 +108,11 @@ export default function ManajemenReservasi() {
       if (sewaData && sewaData.id_sewa) {
         const id_sewa = sewaData.id_sewa;
 
-        // 4. UBAH STATUS SEWA -> Berakhir
         await supabase
           .from("sewa")
           .update({ status_sewa: "Berakhir" })
           .eq("id_sewa", id_sewa);
 
-        // 5. CARI DATA TAGIHAN (Berdasarkan id_sewa)
         const { data: tagihanData } = await supabase
           .from("tagihan")
           .select("id_tagihan")
@@ -143,13 +122,11 @@ export default function ManajemenReservasi() {
         if (tagihanData && tagihanData.id_tagihan) {
           const id_tagihan = tagihanData.id_tagihan;
 
-          // 6. UBAH STATUS TAGIHAN -> Kadaluarsa
           await supabase
             .from("tagihan")
             .update({ status_tagihan: "Kadaluarsa" })
             .eq("id_tagihan", id_tagihan);
 
-          // 7. UBAH STATUS PEMBAYARAN -> Gagal
           await supabase
             .from("pembayaran")
             .update({ status_pembayaran: "Gagal" })
@@ -158,19 +135,16 @@ export default function ManajemenReservasi() {
       }
 
       showToast("Reservasi berhasil dibatalkan.", "success");
-      getReservasi(); // Refresh data tabel
+      getReservasi(); 
     } catch (error: any) {
       console.error(error);
       showToast("Terjadi kesalahan: " + error.message, "error");
     } finally {
       setLoading(false);
-      setCancelData(null); // Tutup modal konfirmasi
+      setCancelData(null); 
     }
   };
 
-  // ============================================
-  // FORMAT TANGGAL
-  // ============================================
   const formatDate = (date: string) => {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("id-ID", {
@@ -180,9 +154,6 @@ export default function ManajemenReservasi() {
     });
   };
 
-  // ============================================
-  // BADGE STATUS
-  // ============================================
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Berhasil":
@@ -196,9 +167,6 @@ export default function ManajemenReservasi() {
     }
   };
 
-  // ============================================
-  // LOGIKA PAGINATION
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = reservasi.slice(indexOfFirstItem, indexOfLastItem);
@@ -208,10 +176,6 @@ export default function ManajemenReservasi() {
 
   return (
     <main className="pt-24 md:ml-[260px] p-5 md:p-8">
-
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION (POP-UP PESAN) */}
-      {/* ============================================ */}
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
@@ -228,9 +192,6 @@ export default function ManajemenReservasi() {
           </div>
         </div>
 
-        {/* ============================================ */}
-        {/* TABLE */}
-        {/* ============================================ */}
         <div className="pt-8">
           <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
             <table className="w-full min-w-[1000px]">
@@ -261,8 +222,7 @@ export default function ManajemenReservasi() {
                           </span>
                         </div>
                       </td>
-                      
-                      {/* AKSI */}
+
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
@@ -272,8 +232,7 @@ export default function ManajemenReservasi() {
                           >
                             <Eye size={18} />
                           </button>
-                          
-                          {/* Tombol batal memicu modal konfirmasi custom, bukan window.confirm */}
+
                           {item.status_reservasi === "Menunggu Pembayaran" && (
                             <button
                               onClick={() => setCancelData({ id_reservasi: item.id_reservasi, id_kamar: item.id_kamar })}
@@ -340,9 +299,6 @@ export default function ManajemenReservasi() {
         </div>
       </div>
 
-      {/* ============================================ */}
-      {/* MODAL KONFIRMASI PEMBATALAN (CUSTOM UI) */}
-      {/* ============================================ */}
       {cancelData && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[110] p-4">
           <div className="bg-white w-full max-w-md rounded-3xl p-8 relative animate-in zoom-in duration-200 shadow-2xl">
@@ -375,9 +331,6 @@ export default function ManajemenReservasi() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* MODAL DETAIL */}
-      {/* ============================================ */}
       {detailData && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto animate-in zoom-in duration-200">

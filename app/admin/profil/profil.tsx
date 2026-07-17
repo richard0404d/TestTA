@@ -5,14 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { CheckCircle, AlertCircle, X, UserCircle } from "lucide-react";
 
 export default function ProfilAdminPage() {
-  // ============================================
-  // SUPABASE
-  // ============================================
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false); // State untuk loading password
@@ -31,25 +25,20 @@ export default function ProfilAdminPage() {
     }, 3000);
   };
 
-  // State Form Profil
   const [profil, setProfil] = useState({
     nama_pegawai: "",
     nomor_telepon_pegawai: "",
     email_pegawai: "",
-    jenis_kelamin_pegawai: "true", // "true" untuk Pria, "false" untuk Wanita
+    jenis_kelamin_pegawai: "true", 
     status_pegawai: "",
     id_role: 0,
   });
 
-  // State Form Password
   const [passwordForm, setPasswordForm] = useState({
     newPassword: "",
     confirmPassword: "",
   });
 
-  // ============================================
-  // FETCH DATA PROFIL PEGAWAI
-  // ============================================
   useEffect(() => {
     const fetchProfil = async () => {
       try {
@@ -87,9 +76,6 @@ export default function ProfilAdminPage() {
     fetchProfil();
   }, [supabase]);
 
-  // ============================================
-  // HANDLE UPDATE PROFIL
-  // ============================================
   const handleUpdateProfil = async () => {
     if (!profil.nama_pegawai.trim()) {
       return showToast("Nama pegawai tidak boleh kosong!", "error");
@@ -123,9 +109,6 @@ export default function ProfilAdminPage() {
     }
   };
 
-  // ============================================
-  // HANDLE UPDATE PASSWORD
-  // ============================================
   const handleUpdatePassword = async () => {
     const { newPassword, confirmPassword } = passwordForm;
 
@@ -151,15 +134,12 @@ export default function ProfilAdminPage() {
       showToast("Gagal mereset password: " + error.message, "error");
     } else {
       showToast("Password berhasil diperbarui!", "success");
-      setPasswordForm({ newPassword: "", confirmPassword: "" }); // Kosongkan form setelah sukses
+      setPasswordForm({ newPassword: "", confirmPassword: "" });
     }
     
     setUpdatingPassword(false);
   };
 
-  // ============================================
-  // RENDER LOADING
-  // ============================================
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -168,13 +148,9 @@ export default function ProfilAdminPage() {
     );
   }
 
-  // ============================================
-  // RENDER UI
-  // ============================================
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
-      
-      {/* TOAST */}
+
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
           toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"
@@ -189,8 +165,7 @@ export default function ProfilAdminPage() {
 
       <main className="pt-24 md:ml-[260px] p-5 md:p-8">
         <div className="max-w-3xl mx-auto space-y-8">
-          
-          {/* HEADER PROFIL */}
+
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-[#1c3163] text-white rounded-full flex items-center justify-center shadow-md">
               <UserCircle size={40} />
@@ -203,12 +178,10 @@ export default function ProfilAdminPage() {
             </div>
           </div>
 
-          {/* SECTION 1: FORM PROFIL */}
           <div className="bg-white rounded-3xl border shadow-sm p-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Informasi Pribadi</h2>
             <div className="space-y-6">
-              
-              {/* NAMA LENGKAP */}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2 ml-1">
                   Nama Lengkap
@@ -222,7 +195,6 @@ export default function ProfilAdminPage() {
                 />
               </div>
 
-              {/* GRID: TELEPON & KELAMIN */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2 ml-1">
@@ -258,7 +230,6 @@ export default function ProfilAdminPage() {
 
               <hr className="my-6 border-gray-100" />
 
-              {/* READ-ONLY FIELDS */}
               <h3 className="text-lg font-bold text-gray-800 mb-4">Informasi Akun</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
@@ -277,7 +248,6 @@ export default function ProfilAdminPage() {
                 </div>
               </div>
 
-              {/* TOMBOL SIMPAN PROFIL */}
               <div className="pt-6">
                 <button 
                   onClick={handleUpdateProfil}
@@ -291,7 +261,6 @@ export default function ProfilAdminPage() {
             </div>
           </div>
 
-          {/* SECTION 2: FORM PASSWORD */}
           <div className="bg-white rounded-3xl border shadow-sm p-8">
             <h2 className="text-xl font-bold text-gray-800 mb-6">Keamanan Akun</h2>
             <div className="space-y-6">

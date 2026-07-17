@@ -4,18 +4,12 @@ import { useEffect, useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { CheckCircle, AlertCircle, X, XCircle, CalendarDays } from "lucide-react";
+import { CheckCircle, AlertCircle, X, XCircle, CalendarDays, Ruler } from "lucide-react";
 
 export default function Reservasi() {
-  // ============================================
-  // SUPABASE & ROUTER
-  // ============================================
   const supabase = createClient();
   const router = useRouter();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [loading, setLoading] = useState(false);
   const [kamar, setKamar] = useState<any[]>([]);
   const [penyewa, setPenyewa] = useState<any>(null);
@@ -47,9 +41,6 @@ export default function Reservasi() {
     teleponPenghuni2: "",
   });
 
-  // ============================================
-  // CAROUSEL LOGIC AUTOMATIC SLIDE
-  // ============================================
   const carouselRef = useRef<HTMLDivElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   
@@ -96,9 +87,6 @@ export default function Reservasi() {
     }, 3000);
   };
 
-  // ============================================
-  // FORMAT TANGGAL & WARNA STATUS
-  // ============================================
   const formatDate = (date: string) => {
     if (!date) return "-";
     return new Date(date).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
@@ -113,9 +101,6 @@ export default function Reservasi() {
     }
   };
 
-  // ============================================
-  // GET DATA AWAL
-  // ============================================
   const getKamar = async () => {
     const { data, error } = await supabase
       .from("kamar")
@@ -173,9 +158,6 @@ export default function Reservasi() {
     getPenyewa();
   }, []);
 
-  // ============================================
-  // LOAD FASILITAS BERDASARKAN KAMAR (BARU)
-  // ============================================
   useEffect(() => {
     const fetchFasilitasKamar = async () => {
       if (!form.kamar) {
@@ -195,11 +177,8 @@ export default function Reservasi() {
     };
 
     fetchFasilitasKamar();
-  }, [form.kamar]); // Effect ini akan berjalan setiap kali form.kamar berubah
+  }, [form.kamar]); 
 
-  // ============================================
-  // KALKULASI HARGA DINAMIS
-  // ============================================
   useEffect(() => {
     if (!form.kamar) return;
     const selectedKamar = kamar.find((item) => String(item.id_kamar) === form.kamar);
@@ -219,9 +198,6 @@ export default function Reservasi() {
     });
   };
 
-  // ============================================
-  // BERSIHKAN RESERVASI KADALUARSA
-  // ============================================
   const checkExpiredReservasi = async () => {
     try {
       const now = new Date().toISOString();
@@ -252,9 +228,6 @@ export default function Reservasi() {
     return new Date(tahun, bulan + 1, tanggalFix);
   }
 
-  // ============================================
-  // PROSES SIMPAN RESERVASI
-  // ============================================
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     let roomClaimedId: number | null = null;
@@ -288,20 +261,6 @@ export default function Reservasi() {
       if (!user) {
         setLoading(false);
         return showToast("User tidak ditemukan, silakan login kembali.", "error");
-      }
-
-      // ============================================
-      // VALIDASI BATAS MAKSIMAL (3 KAMAR)
-      // ============================================
-      const { data: sewaAktif } = await supabase
-        .from("sewa")
-        .select("id_sewa")
-        .eq("id_penyewa", user.id)
-        .in("status_sewa", ["Aktif", "Menunggu Pembayaran"]);
-
-      if (sewaAktif && sewaAktif.length >= 3) {
-        setLoading(false);
-        return showToast("Anda hanya dapat melakukan sewa/reservasi maksimal 3 kamar.", "error");
       }
 
       // Claim kamar
@@ -383,9 +342,6 @@ export default function Reservasi() {
     }
   };
 
-  // ============================================
-  // HANDLE BATALKAN RESERVASI (User)
-  // ============================================
   const executeBatalkanReservasiUser = async () => {
     if (!cancelData) return;
     const { id_reservasi, id_kamar } = cancelData;
@@ -477,8 +433,21 @@ export default function Reservasi() {
         <div>
           <label className="font-medium">Denah Kamar Kos</label>
           <p className="text-sm text-gray-500 mb-2">Silakan lihat denah di bawah ini untuk mengetahui posisi kamar.</p>
-          <div className="w-full rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center p-2 mt-2">
-            <img src="/images/DenahKamar1.png" alt="Denah Kamar Kos" className="w-full h-auto object-contain max-h-[300px] rounded-md" />
+          
+          {/* PANEL DENAH & UKURAN KAMAR */}
+          <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 mt-2 flex flex-col gap-3">
+            
+            {/* Info Ukuran Kamar di Atas Denah */}
+            <div className="flex items-center gap-2 text-sm text-gray-700 bg-white p-2.5 rounded-md border border-gray-200 w-fit shadow-sm">
+              <Ruler size={16} className="text-[#1c3163]" />
+              <span>Ukuran Kamar: <strong className="text-gray-900">3 x 4 Meter (12 m²)</strong></span>
+            </div>
+
+            {/* Gambar Denah */}
+            <div className="flex items-center justify-center bg-white rounded-md border border-gray-100 p-2 overflow-hidden">
+              <img src="/images/DenahKamar1.png" alt="Denah Kamar Kos" className="w-full h-auto object-contain max-h-[300px] rounded-sm" />
+            </div>
+
           </div>
         </div>
 

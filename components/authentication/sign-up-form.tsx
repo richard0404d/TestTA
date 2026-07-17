@@ -26,19 +26,14 @@ export function SignUpForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
-  // ============================================
-  // SUPABASE & ROUTER
-  // ============================================
+
   const supabase = createClient();
   const router = useRouter();
 
-  // ============================================
-  // STATE FORM
-  // ============================================
   const [form, setForm] = useState({
     nama: "",
     telepon: "",
-    gender: "true", // "true" untuk Pria, "false" untuk Wanita
+    gender: "true", 
     email: "",
     password: "",
   });
@@ -48,7 +43,6 @@ export function SignUpForm({
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // TOAST STATE
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -64,32 +58,22 @@ export function SignUpForm({
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
-  // ============================================
-  // HANDLE CHANGE WITH VALIDATION
-  // ============================================
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
-    // Pengecekan khusus untuk input nomor telepon (hanya boleh angka)
     if (name === "telepon") {
-      // Izinkan jika string kosong (user menghapus teks) atau jika isinya hanya angka
+
       if (value !== "" && !/^[0-9]+$/.test(value)) {
-        return; // Hentikan perubahan jika yang diketik bukan angka
+        return; 
       }
     }
 
     setForm({ ...form, [name]: value });
   };
 
-  // ============================================
-  // HANDLE SIGN UP
-  // ============================================
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ============================================
-    // VALIDASI INPUT LENGKAP
-    // ============================================
     if (!form.nama.trim() && !form.email.trim() && !form.password && !form.telepon && !fileKtp) {
       return showToast("Semua field wajib diisi!", "error");
     }
@@ -127,37 +111,31 @@ export function SignUpForm({
       return showToast("Foto KTP wajib diunggah!", "error");
     }
 
-    // Lolos Validasi
     setIsLoading(true);
 
     try {
-      // 1. Registrasi Auth Supabase (Tabel auth.users bawaan)
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
       });
 
-      // ============================================
-      // CEGAT ERROR DARI SUPABASE
-      // ============================================
       if (authError) {
-        // Terjemahkan pesan "User already registered"
+
         if (authError.message === "User already registered") {
           throw new Error("Email sudah terdaftar!");
         }
-        // Jika ada error lain dari Supabase (misal rate limit), lempar error aslinya
+
         throw new Error(authError.message);
       }
 
       const user = authData.user;
       if (!user) throw new Error("Gagal membuat user.");
 
-      // Pengecekan cadangan (jika settingan 'Prevent email enumeration' di Supabase diubah suatu saat nanti)
       if (user.identities && user.identities.length === 0) {
         throw new Error("Email sudah terdaftar!");
       }
 
-      // 2. Upload Gambar KTP ke Bucket "ktp"
       const fileExt = fileKtp.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
@@ -167,14 +145,12 @@ export function SignUpForm({
 
       if (uploadError) throw new Error("Gagal mengunggah KTP: " + uploadError.message);
 
-      // Ambil URL Publik KTP
       const { data: publicUrlData } = supabase.storage
         .from("ktp")
         .getPublicUrl(fileName);
 
       const ktpUrl = publicUrlData.publicUrl;
 
-      // 3. Insert ke Tabel Penyewa
       const isPria = form.gender === "true";
 
       const { error: insertError } = await supabase
@@ -201,7 +177,7 @@ export function SignUpForm({
       }, 1500);
 
     } catch (error: any) {
-      // Jika error dilempar dari atas, toast akan menampilkan pesan bahasa Indonesianya di sini
+
       console.error(error);
       showToast(error.message || "Terjadi kesalahan saat registrasi", "error");
     } finally {
@@ -209,12 +185,9 @@ export function SignUpForm({
     }
   }
 
-  // ============================================
-  // UI
-  // ============================================
   return (
     <div className="relative w-full max-w-md mx-auto">
-      {/* TOAST */}
+
       {toast.show && (
         <div className={`fixed top-10 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
@@ -227,7 +200,7 @@ export function SignUpForm({
 
       <form className={cn("flex flex-col gap-6", className)} {...props} onSubmit={handleSignUp} noValidate>
         <FieldGroup>
-          {/* TITLE */}
+
           <div className="flex flex-col items-center gap-1 text-center mb-4">
             <h1 className="text-2xl font-bold">Buat Akun Baru</h1>
             <p className="text-muted-foreground text-sm text-balance">
@@ -235,7 +208,6 @@ export function SignUpForm({
             </p>
           </div>
 
-          {/* NAMA PENYEWA */}
           <Field>
             <FieldLabel htmlFor="nama">Nama Lengkap</FieldLabel>
             <Input
@@ -248,7 +220,6 @@ export function SignUpForm({
             />
           </Field>
 
-          {/* EMAIL */}
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input
@@ -261,7 +232,6 @@ export function SignUpForm({
             />
           </Field>
 
-          {/* PASSWORD */}
           <Field>
             <FieldLabel htmlFor="password">Password</FieldLabel>
             <InputGroup>
@@ -282,21 +252,20 @@ export function SignUpForm({
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* TELEPON */}
+
             <Field>
               <FieldLabel htmlFor="telepon">Nomor Telepon</FieldLabel>
               <Input
                 id="telepon"
                 name="telepon"
-                type="text" // Tetap text agar regex bisa membatasi karakter non-angka
-                inputMode="numeric" // Memunculkan keyboard numerik di HP
+                type="text" 
+                inputMode="numeric" 
                 placeholder="0812..."
                 value={form.telepon}
                 onChange={handleChange}
               />
             </Field>
 
-            {/* GENDER */}
             <Field>
               <FieldLabel htmlFor="gender">Jenis Kelamin</FieldLabel>
               <select
@@ -312,7 +281,6 @@ export function SignUpForm({
             </Field>
           </div>
 
-          {/* KTP UPLOAD */}
           <Field>
             <FieldLabel htmlFor="ktp">Foto KTP</FieldLabel>
             <Input
@@ -325,14 +293,12 @@ export function SignUpForm({
             <p className="text-xs text-muted-foreground mt-1">Pastikan foto KTP terlihat jelas dan tidak buram.</p>
           </Field>
 
-          {/* BUTTON SUBMIT */}
           <Field className="mt-4">
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? "Memproses Registrasi..." : "Daftar Sekarang"}
             </Button>
           </Field>
 
-          {/* LOGIN LINK */}
           <div className="text-center text-sm text-muted-foreground mt-2">
             Sudah punya akun?{" "}
             <Link href="/authentication/sign-in" className="text-primary hover:underline font-medium">
@@ -340,7 +306,6 @@ export function SignUpForm({
             </Link>
           </div>
 
-          {/* COPYRIGHT */}
           <FieldDescription className="text-center mt-4">
             Copyright © {mounted ? new Date().getFullYear() : ""}
             <br />

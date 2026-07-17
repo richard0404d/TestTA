@@ -5,36 +5,23 @@ import { createClient } from "@/lib/supabase/client";
 import { Plus, Pencil, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenPengeluaran() {
-  // ============================================
-  // SUPABASE
-  // ============================================
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [openModal, setOpenModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pengeluaran, setPengeluaran] = useState<any[]>([]);
   const [editId, setEditId] = useState<number | null>(null);
   const [pegawaiLogin, setPegawaiLogin] = useState<any>(null);
 
-  // ============================================
-  // PAGINATION STATE
-  // ============================================
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Toast Notification State
   const [toast, setToast] = useState({
     show: false,
     message: "",
-    type: "success", // 'success' | 'error'
+    type: "success", 
   });
 
-  // ============================================
-  // HELPER TOAST
-  // ============================================
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -42,18 +29,12 @@ export default function ManajemenPengeluaran() {
     }, 3000);
   };
 
-  // ============================================
-  // FORM
-  // ============================================
   const [form, setForm] = useState({
     tanggal_pengeluaran: "",
     keterangan_pengeluaran: "",
     jumlah_pengeluaran: "",
   });
 
-  // ============================================
-  // GET USER LOGIN
-  // ============================================
   const getPegawaiLogin = async () => {
     try {
       // Ambil session user yang sedang aktif
@@ -64,7 +45,6 @@ export default function ManajemenPengeluaran() {
         return;
       }
 
-      // Cocokkan ID user login dengan tabel pegawai
       const { data, error } = await supabase
         .from("pegawai")
         .select("*")
@@ -82,9 +62,6 @@ export default function ManajemenPengeluaran() {
     }
   };
 
-  // ============================================
-  // GET PENGELUARAN
-  // ============================================
   const getPengeluaran = async () => {
     const { data, error } = await supabase
       .from("pengeluaran")
@@ -104,17 +81,11 @@ export default function ManajemenPengeluaran() {
     setPengeluaran(data || []);
   };
 
-  // ============================================
-  // LOAD DATA
-  // ============================================
   useEffect(() => {
     getPegawaiLogin();
     getPengeluaran();
   }, []);
 
-  // ============================================
-  // HANDLE INPUT
-  // ============================================
   const handleChange = (e: any) => {
     setForm({
       ...form,
@@ -122,34 +93,26 @@ export default function ManajemenPengeluaran() {
     });
   };
 
-  // ============================================
-  // SIMPAN PENGELUARAN
-  // ============================================
   const handleSave = async () => {
     try {
       setLoading(true);
 
-      // Cek apakah pegawaiLogin ada sebelum insert
       if (!pegawaiLogin && !editId) {
         showToast("Gagal: Anda tidak terdeteksi sebagai pegawai aktif.", "error");
         setLoading(false);
         return;
       }
 
-      // --- VALIDASI FORM ---
       const isTanggalKosong = !form.tanggal_pengeluaran || form.tanggal_pengeluaran.trim() === "";
       const isKeteranganKosong = !form.keterangan_pengeluaran || form.keterangan_pengeluaran.trim() === "";
       const isJumlahKosong = !form.jumlah_pengeluaran || form.jumlah_pengeluaran.toString().trim() === "";
 
-      // 0. Cek apakah SELURUH field kosong
       if (isTanggalKosong && isKeteranganKosong && isJumlahKosong) {
         showToast("Harap mengisi semua field wajib!", "error");
         setLoading(false);
         return;
       }
 
-      // --- VALIDASI FORM ---
-      // 1. Cek apakah tanggal sudah diisi
       if (!form.tanggal_pengeluaran || form.tanggal_pengeluaran.trim() === "") {
         showToast("Tanggal pengeluaran wajib diisi!", "error");
         setLoading(false);
@@ -162,14 +125,12 @@ export default function ManajemenPengeluaran() {
         return;
       }
 
-      // 2. Cek apakah keterangan sudah diisi
       if (!form.keterangan_pengeluaran || form.keterangan_pengeluaran.trim() === "") {
         showToast("Keterangan pengeluaran wajib diisi!", "error");
         setLoading(false);
         return;
       }
 
-      // 3. Cek apakah jumlah pengeluaran sudah diisi dan lebih dari 0
       if (!form.jumlah_pengeluaran || form.jumlah_pengeluaran.toString().trim() === "") {
         showToast("Jumlah pengeluaran wajib diisi!", "error");
         setLoading(false);
@@ -181,11 +142,7 @@ export default function ManajemenPengeluaran() {
         setLoading(false);
         return;
       }
-      // ---------------------
 
-      // ============================================
-      // UPDATE
-      // ============================================
       if (editId) {
         const { error } = await supabase
           .from("pengeluaran")
@@ -200,9 +157,7 @@ export default function ManajemenPengeluaran() {
 
         showToast("Pengeluaran berhasil diubah", "success");
       } else {
-        // ============================================
-        // INSERT
-        // ============================================
+
         const { error } = await supabase
           .from("pengeluaran")
           .insert([
@@ -219,7 +174,6 @@ export default function ManajemenPengeluaran() {
         showToast("Pengeluaran berhasil ditambahkan", "success");
       }
 
-      // REFRESH & RESET
       await getPengeluaran();
       setForm({
         tanggal_pengeluaran: "",
@@ -237,9 +191,6 @@ export default function ManajemenPengeluaran() {
     }
   };
 
-  // ============================================
-  // LOGIKA PAGINATION
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = pengeluaran.slice(indexOfFirstItem, indexOfLastItem);
@@ -249,10 +200,6 @@ export default function ManajemenPengeluaran() {
 
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
-      
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION */}
-      {/* ============================================ */}
       {toast.show && (
         <div 
           className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
@@ -287,7 +234,6 @@ export default function ManajemenPengeluaran() {
                 </p>
               </div>
 
-              {/* BUTTON TAMBAH */}
               <button
                 onClick={() => {
                   setOpenModal(true);
@@ -321,18 +267,14 @@ export default function ManajemenPengeluaran() {
                   </tr>
                 </thead>
 
-                {/* BODY */}
                 <tbody>
                   {pengeluaran.length > 0 ? (
-                    // MENGGUNAKAN currentItems BUKAN pengeluaran
                     currentItems.map((item) => (
                       <tr key={item.id_pengeluaran} className="border-t hover:bg-gray-50 transition">
-                        {/* NAMA */}
                         <td className="px-6 py-4 text-gray-800">
                           {item.pegawai?.nama_pegawai || "-"}
                         </td>
 
-                        {/* TANGGAL */}
                         <td className="px-6 py-4 text-gray-800">
                           {item.tanggal_pengeluaran ? new Date(item.tanggal_pengeluaran).toLocaleDateString("id-ID", {
                             day: "2-digit",
@@ -341,17 +283,14 @@ export default function ManajemenPengeluaran() {
                           }) : "-"}
                         </td>
 
-                        {/* KETERANGAN */}
                         <td className="px-6 py-4 text-gray-800">
                           {item.keterangan_pengeluaran}
                         </td>
 
-                        {/* JUMLAH */}
                         <td className="px-6 py-4 text-gray-800 font-medium">
                           Rp {Number(item.jumlah_pengeluaran).toLocaleString("id-ID")}
                         </td>
 
-                        {/* AKSI */}
                         <td className="px-6 py-4">
                           <div className="flex justify-center">
                             <button
@@ -382,9 +321,6 @@ export default function ManajemenPengeluaran() {
                 </tbody>
               </table>
 
-              {/* ============================================ */}
-              {/* PAGINATION UI */}
-              {/* ============================================ */}
               {pengeluaran.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
                   
@@ -432,9 +368,6 @@ export default function ManajemenPengeluaran() {
           </div>
         </div>
 
-        {/* ============================================ */}
-        {/* MODAL */}
-        {/* ============================================ */}
         {openModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 relative animate-in fade-in zoom-in duration-200">
@@ -447,15 +380,12 @@ export default function ManajemenPengeluaran() {
                 <X size={24} />
               </button>
 
-              {/* TITLE */}
               <h2 className="text-3xl font-bold text-gray-800 mb-8">
                 {editId ? "Edit Pengeluaran" : "Tambah Pengeluaran"}
               </h2>
 
-              {/* FORM */}
               <div className="space-y-6">
-                
-                {/* NAMA PEGAWAI */}
+
                 <div>
                   <label className="block mb-2 font-medium text-gray-700">
                     Nama Pegawai
@@ -473,7 +403,6 @@ export default function ManajemenPengeluaran() {
                   )}
                 </div>
 
-                {/* TANGGAL */}
                 <div>
                   <label className="block mb-2 font-medium text-gray-700">
                     Tanggal Pengeluaran
@@ -487,7 +416,6 @@ export default function ManajemenPengeluaran() {
                   />
                 </div>
 
-                {/* KETERANGAN */}
                 <div>
                   <label className="block mb-2 font-medium text-gray-700">
                     Keterangan Pengeluaran
@@ -501,7 +429,6 @@ export default function ManajemenPengeluaran() {
                   />
                 </div>
 
-                {/* JUMLAH */}
                 <div>
                   <label className="block mb-2 font-medium text-gray-700">
                     Jumlah Pengeluaran (Rp)
@@ -516,7 +443,6 @@ export default function ManajemenPengeluaran() {
                   />
                 </div>
 
-                {/* BUTTON */}
                 <div className="flex justify-end gap-4 pt-5">
                   <button
                     onClick={() => setOpenModal(false)}

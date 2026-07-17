@@ -12,7 +12,6 @@ export default function KamarPenyewaPage() {
 
   const [loading, setLoading] = useState(true);
   
-  // State untuk menampung banyak sewa/kamar aktif & Riwayat
   const [sewaList, setSewaList] = useState<any[]>([]);
   const [riwayatSewa, setRiwayatSewa] = useState<any[]>([]);
   const [selectedSewaId, setSelectedSewaId] = useState<string>("");
@@ -22,16 +21,13 @@ export default function KamarPenyewaPage() {
   const [kamar, setKamar] = useState<any>(null);
   const [fasilitas, setFasilitas] = useState<any[]>([]);
 
-  // PAGINATION STATE
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // State Modals
   const [showModalPenghuni, setShowModalPenghuni] = useState(false);
   const [showModalKeluar, setShowModalKeluar] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Form Ubah Penghuni
   const [formPenghuni, setFormPenghuni] = useState({
     jumlah: 1,
     nama_penghuni2: "",
@@ -44,7 +40,6 @@ export default function KamarPenyewaPage() {
     "Sedang Diperbaiki": "bg-yellow-100 text-yellow-700",
   };
 
-  // State Toast
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -52,16 +47,12 @@ export default function KamarPenyewaPage() {
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
-  // ============================================
-  // LOAD DAFTAR KAMAR AKTIF & HISTORI (Langkah 1)
-  // ============================================
   const fetchSewaList = async () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Mengambil SEMUA riwayat sewa milik penyewa ini (Aktif & Berakhir)
       const { data: semuaSewa } = await supabase
         .from("sewa")
         .select("*")
@@ -71,12 +62,11 @@ export default function KamarPenyewaPage() {
       // Simpan seluruh data untuk tabel histori
       setRiwayatSewa(semuaSewa || []);
 
-      // Filter HANYA yang aktif untuk bagian atas (Kamar Saya)
       const sewaAktif = (semuaSewa || []).filter(s => s.status_sewa === "Aktif");
       setSewaList(sewaAktif);
 
       if (sewaAktif.length > 0) {
-        // Jika belum ada yang dipilih, pilih kamar pertama secara default
+
         if (!selectedSewaId || !sewaAktif.find(s => String(s.id_sewa) === selectedSewaId)) {
           setSelectedSewaId(String(sewaAktif[0].id_sewa));
         }
@@ -94,9 +84,6 @@ export default function KamarPenyewaPage() {
     fetchSewaList();
   }, [supabase]);
 
-  // ============================================
-  // LOAD DETAIL KAMAR YANG DIPILIH (Langkah 2)
-  // ============================================
   useEffect(() => {
     if (!selectedSewaId || sewaList.length === 0) return;
 
@@ -107,7 +94,6 @@ export default function KamarPenyewaPage() {
 
         setSewa(currentSewa);
 
-        // Get Data Reservasi terkait kamar ini
         const { data: reservasiData } = await supabase
           .from("reservasi")
           .select("*")
@@ -123,7 +109,6 @@ export default function KamarPenyewaPage() {
           });
         }
 
-        // Get Data Detail Kamar (Harga)
         const { data: kamarData } = await supabase
           .from("kamar")
           .select("*")
@@ -131,7 +116,6 @@ export default function KamarPenyewaPage() {
           .single();
         setKamar(kamarData);
 
-        // Get Fasilitas Kamar
         const { data: fasilitasData } = await supabase
           .from("detail_fasilitas_kamar")
           .select("kondisi_fasilitas, fasilitas(nama_fasilitas)")
@@ -146,9 +130,6 @@ export default function KamarPenyewaPage() {
     fetchDetailKamarTerpilih();
   }, [selectedSewaId, sewaList]);
 
-  // ============================================
-  // LOGIKA: BATAS WAKTU UBAH PENGHUNI
-  // ============================================
   const cekBisaUbahPenghuni = () => {
     if (!reservasi) return false;
     if (!reservasi.terakhir_ubah_penghuni) return true; 
@@ -160,9 +141,6 @@ export default function KamarPenyewaPage() {
 
   const isUbahPenghuniDisabled = !cekBisaUbahPenghuni();
 
-  // ============================================
-  // ACTION: UBAH PENGHUNI
-  // ============================================
   const handleUbahPenghuni = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formPenghuni.jumlah === 2 && (!formPenghuni.nama_penghuni2 || !formPenghuni.nomor_telepon2)) {
@@ -195,22 +173,18 @@ export default function KamarPenyewaPage() {
     }
   };
 
-// ============================================
-  // ACTION: KELUAR KOS
-  // ============================================
   const handleKeluarKos = async () => {
     setIsProcessing(true);
     try {
-      // 1. Dapatkan tanggal hari ini (Format YYYY-MM-DD menyesuaikan zona waktu lokal)
+
       const today = new Date();
       const tanggalHariIni = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().split("T")[0];
 
-      // 2. Update status sewa DAN tanggal berakhirnya
       const { error: errSewa } = await supabase
         .from("sewa")
         .update({ 
           status_sewa: "Berakhir",
-          tanggal_berakhir_sewa: tanggalHariIni // <-- INI TAMBAHANNYA
+          tanggal_berakhir_sewa: tanggalHariIni
         })
         .eq("id_sewa", sewa.id_sewa);
       if (errSewa) throw errSewa;
@@ -230,7 +204,6 @@ export default function KamarPenyewaPage() {
       showToast("Anda telah berhasil menyelesaikan masa sewa kos.", "success");
       setShowModalKeluar(false);
 
-      // Memuat ulang daftar kamar (aktif dan histori)
       setTimeout(() => {
         setSelectedSewaId("");
         fetchSewaList();
@@ -243,26 +216,20 @@ export default function KamarPenyewaPage() {
     }
   };
 
-  // ============================================
-  // PAGINATION LOGIC
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentRiwayat = riwayatSewa.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(riwayatSewa.length / itemsPerPage);
 
-  // Kalkulasi Harga
   const hargaTotal = kamar && reservasi 
     ? Number(kamar.harga_sewa_kamar) + (reservasi.jumlah_penghuni === 2 ? Number(kamar.harga_tambahan_penyewa) : 0)
     : 0;
 
-  // Helper Format Tanggal
   const formatTanggal = (dateStr: string | null) => {
     if (!dateStr) return "-";
     return new Date(dateStr).toLocaleDateString("id-ID", { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  // Helper Status Badge Histori
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Aktif": return "bg-green-100 text-green-700 border-green-200";
@@ -285,9 +252,6 @@ export default function KamarPenyewaPage() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* BAGIAN ATAS: INFORMASI KAMAR AKTIF SAAT INI */}
-      {/* ============================================ */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">
         <h1 className="text-3xl font-bold text-gray-800">Kamar Saya</h1>
         
@@ -312,7 +276,7 @@ export default function KamarPenyewaPage() {
 
       {sewaList.length > 0 && sewa ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* KOLOM KIRI: INFO KAMAR */}
+
           <div className="md:col-span-2 space-y-6">
             
             <div className="bg-white border rounded-2xl p-6 shadow-sm">
@@ -342,7 +306,6 @@ export default function KamarPenyewaPage() {
               </div>
             </div>
 
-            {/* FASILITAS */}
             <div className="bg-white border rounded-2xl p-6 shadow-sm">
               <h3 className="text-xl font-bold text-gray-800 mb-4">Fasilitas Kamar</h3>
               {fasilitas.length === 0 ? (
@@ -363,10 +326,8 @@ export default function KamarPenyewaPage() {
 
           </div>
 
-          {/* KOLOM KANAN: PENGHUNI & ACTION */}
           <div className="space-y-6">
             
-            {/* HARGA & PENGHUNI */}
             <div className="bg-white border rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <Users size={20} className="text-[#2C5EBF]" /> Penghuni
@@ -416,7 +377,6 @@ export default function KamarPenyewaPage() {
               )}
             </div>
 
-            {/* DANGER ZONE */}
             <div className="bg-red-50 border border-red-100 rounded-2xl p-6 shadow-sm">
               <h3 className="text-lg font-bold text-red-800 mb-2 flex items-center gap-2">
                 <DoorOpen size={20} /> Berhenti Sewa
@@ -436,7 +396,7 @@ export default function KamarPenyewaPage() {
           </div>
         </div>
       ) : (
-        /* JIKA TIDAK ADA KAMAR AKTIF SAMA SEKALI */
+
         <div className="max-w-2xl mx-auto p-10 text-center space-y-4 border border-gray-200 rounded-3xl bg-white shadow-sm mt-6">
           <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-gray-100">
             <BedDouble size={40} className="text-gray-400" />
@@ -447,9 +407,6 @@ export default function KamarPenyewaPage() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* BAGIAN BAWAH: TABEL RIWAYAT / HISTORI SEWA */}
-      {/* ============================================ */}
       <div className="mt-12 bg-white border border-gray-200 rounded-3xl pt-6 shadow-sm">
         <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3 px-6 md:px-8">
           <History size={26} className="text-[#2C5EBF]" /> Riwayat Sewa Kamar
@@ -474,7 +431,7 @@ export default function KamarPenyewaPage() {
               ) : (
                 currentRiwayat.map((history, index) => (
                   <tr key={history.id_sewa} className="hover:bg-gray-50/50 transition">
-                    {/* Logika Index untuk menyesuaikan halaman */}
+
                     <td className="px-6 md:px-8 py-4 text-gray-600">{index + 1 + indexOfFirstItem}</td>
                     <td className="px-6 py-4 font-bold text-gray-800">Kamar {history.id_kamar}</td>
                     <td className="px-6 py-4 text-gray-600">{formatTanggal(history.tanggal_sewa)}</td>
@@ -491,7 +448,6 @@ export default function KamarPenyewaPage() {
           </table>
         </div>
 
-        {/* PAGINATION UI */}
         {riwayatSewa.length > 0 && (
           <div className="flex items-center justify-between px-6 md:px-8 py-4 bg-white border-t border-gray-200 rounded-b-3xl">
             <div className="text-sm text-gray-500">
@@ -522,9 +478,6 @@ export default function KamarPenyewaPage() {
         )}
       </div>
 
-      {/* ============================================ */}
-      {/* MODAL UBAH PENGHUNI */}
-      {/* ============================================ */}
       {showModalPenghuni && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
           <div className="bg-white w-full max-w-md rounded-2xl p-6 animate-in zoom-in duration-200">
@@ -581,9 +534,6 @@ export default function KamarPenyewaPage() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* MODAL KONFIRMASI KELUAR */}
-      {/* ============================================ */}
       {showModalKeluar && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[110] p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl p-6 text-center animate-in zoom-in duration-200">

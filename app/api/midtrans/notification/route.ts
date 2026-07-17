@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Bypass RLS karena dijalankan di server webhook
+  process.env.SUPABASE_SERVICE_ROLE_KEY! 
 );
 
 export async function POST(req: Request) {
@@ -16,20 +16,14 @@ export async function POST(req: Request) {
     const orderId = body.order_id;
     const transactionStatus = body.transaction_status;
 
-    // VALIDASI ORDER
     if (!orderId.startsWith("TAGIHAN-")) {
       return NextResponse.json({ success: false });
     }
 
-    // AMBIL ID TAGIHAN
     const tagihanId = Number(orderId.split("-")[1]);
 
-    // ============================================
-    // STATUS: SUCCESS (SETTLEMENT / CAPTURE)
-    // ============================================
     if (transactionStatus === "settlement" || transactionStatus === "capture") {
-      
-      // 1. CARI DATA TAGIHAN
+
       const { data: tagihan } = await supabase
         .from("tagihan")
         .select("*")
@@ -41,7 +35,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false });
       }
 
-      // 2. CARI DATA SEWA
       const { data: sewa } = await supabase
         .from("sewa")
         .select("*")
@@ -53,7 +46,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false });
       }
 
-      // 3. AMBIL DATA EMAIL PENYEWA (Dibutuhkan untuk kirim email)
       const { data: penyewa } = await supabase
         .from("penyewa")
         .select("email_penyewa")
@@ -62,26 +54,20 @@ export async function POST(req: Request) {
 
       let tanggalBerakhir = sewa.tanggal_berakhir_sewa;
 
-      // JIKA SUDAH AKTIF (BERARTI PERPANJANGAN SEWA)
       if (sewa.status_sewa === "Aktif") {
         const tanggal = new Date(sewa.tanggal_berakhir_sewa);
         tanggal.setMonth(tanggal.getMonth() + 1);
         tanggalBerakhir = tanggal;
       }
 
-      // CEK APAKAH DATA PEMBAYARAN SUDAH PERNAH DICATAT?
       const { data: pembayaranExist } = await supabase
         .from("pembayaran")
         .select("*")
         .eq("id_tagihan", tagihan.id_tagihan)
         .maybeSingle();
 
-      // ============================================
-      // LOGIKA UTAMA: UPDATE SELURUH DATABASE DULU
-      // ============================================
       if (!pembayaranExist) {
-        
-        // A. INSERT KE TABEL PEMBAYARAN
+
         await supabase.from("pembayaran").insert([
           {
             id_tagihan: tagihan.id_tagihan,
@@ -90,13 +76,11 @@ export async function POST(req: Request) {
           },
         ]);
 
-        // B. UPDATE STATUS TAGIHAN TERKAIT MENJADI 'LUNAS'
         await supabase
           .from("tagihan")
           .update({ status_tagihan: "Lunas" })
           .eq("id_tagihan", tagihan.id_tagihan);
 
-        // C. UPDATE STATUS & TANGGAL BERAKHIR SEWA
         await supabase
           .from("sewa")
           .update({
@@ -105,7 +89,6 @@ export async function POST(req: Request) {
           })
           .eq("id_sewa", tagihan.id_sewa);
 
-        // D. UPDATE STATUS RESERVASI JIKA BARU PERTAMA KALI MASUK
         if (sewa.status_sewa === "Menunggu Pembayaran") {
           await supabase
             .from("reservasi")
@@ -113,16 +96,11 @@ export async function POST(req: Request) {
             .eq("id_reservasi", sewa.id_reservasi);
         }
 
-        // E. UPDATE STATUS KAMAR MENJADI 'DITEMPATI'
         await supabase
           .from("kamar")
           .update({ status_kamar: "Ditempati" })
           .eq("id_kamar", sewa.id_kamar);
 
-
-        // ============================================
-        // LOGIKA KIRIM EMAIL (DIJALANKAN PALING AKHIR)
-        // ============================================
         if (penyewa && penyewa.email_penyewa) {
           try {
             const sendEmail = async (to: string, subject: string, html: string) => {
@@ -177,7 +155,6 @@ export async function POST(req: Request) {
               </div>
             `;
 
-            // Eksekusi Kirim Email Paralel tanpa await (Fire and Forget)
             Promise.all([
               sendEmail(penyewa.email_penyewa, "Konfirmasi Pembayaran Kos 75 - Berhasil", htmlPenyewa),
               sendEmail("rumahkos2an@gmail.com", `Notifikasi Pembayaran Baru - Kamar ${sewa.id_kamar}`, htmlAdmin)
@@ -192,7 +169,6 @@ export async function POST(req: Request) {
 
     }
 
-    // Mengirim response secepat mungkin setelah DB terupdate (0.1 detik)
     return NextResponse.json({ success: true });
 
   } catch (error) {

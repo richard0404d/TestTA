@@ -10,7 +10,7 @@ export default function LaporanKerusakan() {
   const [loading, setLoading] = useState(false);
 
   // DATA STATES
-  const [sewaList, setSewaList] = useState<any[]>([]); // Menyimpan daftar semua sewa aktif
+  const [sewaList, setSewaList] = useState<any[]>([]); 
   const [fasilitas, setFasilitas] = useState<any[]>([]);
   const [laporanList, setLaporanList] = useState<any[]>([]);
 
@@ -18,7 +18,6 @@ export default function LaporanKerusakan() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // State untuk Toast Notification
   const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false,
     message: "",
@@ -26,7 +25,7 @@ export default function LaporanKerusakan() {
   });
 
   const [form, setForm] = useState({
-    id_sewa: "", // Menyimpan ID sewa yang dipilih (mewakili kamar)
+    id_sewa: "",
     id_fasilitas: "",
     id_detail_fasiliitas_kamar: "",
     laporan: "",
@@ -38,22 +37,15 @@ export default function LaporanKerusakan() {
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 4000);
   };
 
-// ============================================
-  // HELPER: FORMAT TANGGAL & JAM
-  // ============================================
   const formatDateTime = (dateString: string) => {
     if (!dateString) return "-";
     
-    // 1. Ubah spasi menjadi 'T' agar sesuai standar format tanggal web
     let safeDateString = dateString.replace(" ", "T");
     
-    // 2. KUNCI PERBAIKAN: Jika teks dari Supabase tidak memiliki 'Z' (zona waktu),
-    // kita tambahkan 'Z' secara paksa agar terbaca sebagai UTC.
     if (!safeDateString.endsWith("Z") && !safeDateString.includes("+")) {
       safeDateString += "Z";
     }
 
-    // 3. Gunakan cara Date bawaan yang sebelumnya sudah berhasil
     const date = new Date(safeDateString);
     
     return date.toLocaleDateString("id-ID", {
@@ -74,7 +66,6 @@ export default function LaporanKerusakan() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 1. AMBIL SEMUA KAMAR/SEWA AKTIF MILIK USER
     const { data: sewaData } = await supabase
       .from("sewa")
       .select("*")
@@ -83,12 +74,10 @@ export default function LaporanKerusakan() {
 
     setSewaList(sewaData || []);
 
-    // Pilih otomatis kamar pertama jika ada dan form id_sewa masih kosong
     if (sewaData && sewaData.length > 0 && !form.id_sewa) {
       setForm((prev) => ({ ...prev, id_sewa: String(sewaData[0].id_sewa) }));
     }
 
-    // 2. AMBIL RIWAYAT LAPORAN berdasarkan SEMUA id_sewa milik user ini
     const idSewaArray = (sewaData || []).map(s => s.id_sewa);
     
     if (idSewaArray.length > 0) {
@@ -106,9 +95,6 @@ export default function LaporanKerusakan() {
     setLoading(false);
   }
 
-  // ============================================
-  // LOAD FASILITAS JIKA KAMAR BERUBAH
-  // ============================================
   useEffect(() => {
     if (form.id_sewa) {
       fetchFasilitasKamar(form.id_sewa);
@@ -130,7 +116,6 @@ export default function LaporanKerusakan() {
     }
   }
 
-  // LOGIKA PAGINATION
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentLaporan = laporanList.slice(indexOfFirstItem, indexOfLastItem);
@@ -163,9 +148,7 @@ export default function LaporanKerusakan() {
 
     setLoading(true);
     try {
-      // ============================================
-      // VALIDASI ANTI-SPAM (LIVE DATABASE CHECK)
-      // ============================================
+
       const { data: cekFasilitas, error: errCek } = await supabase
         .from("detail_fasilitas_kamar")
         .select("kondisi_fasilitas")
@@ -179,7 +162,6 @@ export default function LaporanKerusakan() {
         }
       }
 
-      // PROSES UPLOAD FOTO
       let imageUrl = null;
       if (form.file) {
         const fileExt = form.file.name.split('.').pop();
@@ -193,7 +175,6 @@ export default function LaporanKerusakan() {
       const sewaTerkait = sewaList.find(s => String(s.id_sewa) === form.id_sewa);
       const idKamar = sewaTerkait?.id_kamar;
 
-      // INSERT LAPORAN
       const { error: insertError } = await supabase.from("laporan_kerusakan").insert({
         id_sewa: Number(form.id_sewa),
         id_kamar: idKamar,
@@ -206,17 +187,14 @@ export default function LaporanKerusakan() {
 
       if (insertError) throw insertError;
 
-      // UPDATE STATUS FASILITAS JADI RUSAK
       await supabase.from("detail_fasilitas_kamar")
         .update({ kondisi_fasilitas: "Rusak" })
         .eq("id_detail_fasiliitas_kamar", Number(form.id_detail_fasiliitas_kamar));
 
       showToast("Laporan kerusakan berhasil dikirim!", "success");
       
-      // Reset form (kecuali id_sewa agar user tidak perlu pilih ulang kamar)
       setForm({ ...form, id_fasilitas: "", id_detail_fasiliitas_kamar: "", laporan: "", file: null });
       
-      // Ambil data terbaru
       getData();
       
     } catch (err: any) {
@@ -228,7 +206,7 @@ export default function LaporanKerusakan() {
 
   return (
     <div className="max-w-5xl mx-auto p-5 space-y-8 pb-32">
-      {/* Toast Popup Message */}
+
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
@@ -239,7 +217,6 @@ export default function LaporanKerusakan() {
         </div>
       )}
 
-      {/* Daftar Laporan */}
       <div className="border rounded-2xl p-5 bg-white shadow-sm">
         <h2 className="text-2xl font-bold mb-5">Laporan Saya</h2>
         <div className="space-y-4">
@@ -247,7 +224,6 @@ export default function LaporanKerusakan() {
             currentLaporan.map((item) => (
               <div key={item.id_kerusakan} className="border rounded-xl p-5 flex flex-col gap-3 bg-gray-50 hover:bg-gray-100 transition shadow-sm relative">
                 
-                {/* Bagian Atas: Detail Keluhan Penyewa & Status */}
                 <div className="flex justify-between items-start">
                   <div className="flex-1 pr-4">
                     <p className="font-semibold text-gray-800 text-lg">
@@ -255,7 +231,6 @@ export default function LaporanKerusakan() {
                       <span className="text-gray-500 font-normal text-sm ml-2">- Kamar {item.id_kamar}</span>
                     </p>
                     
-                    {/* TANGGAL DAN JAM PEMBUATAN LAPORAN (PENYEWA) */}
                     <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1 mb-3">
                       <Clock size={13} />
                       <span>Dilaporkan: {formatDateTime(item.created_at)}</span>
@@ -267,7 +242,6 @@ export default function LaporanKerusakan() {
                     </p>
                   </div>
 
-                  {/* Status Badge */}
                   <span className={`text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap border shrink-0 ${
                     item.status_perbaikan === "Sudah Diperbaiki" ? "bg-green-50 text-green-700 border-green-200" :
                     item.status_perbaikan === "Proses Perbaikan" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
@@ -278,12 +252,10 @@ export default function LaporanKerusakan() {
                   </span>
                 </div>
 
-                {/* Bagian Bawah: Catatan / Detail Perbaikan dari Admin */}
                 {item.keterangan_perbaikan && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <div className="flex justify-between items-end mb-2">
                       <p className="text-sm font-semibold text-[#1c3163]">Catatan / Detail Perbaikan:</p>
-                      {/* TANGGAL DAN JAM CATATAN ADMIN MENGGUNAKAN KOLOM tanggal_perbaikan */}
                       <div className="flex items-center gap-1 text-[11px] text-gray-400">
                         <Clock size={11} />
                         <span>Direspons: {formatDateTime(item.tanggal_perbaikan)}</span>
@@ -302,7 +274,6 @@ export default function LaporanKerusakan() {
           )}
         </div>
 
-        {/* Pagination */}
         {laporanList.length > 0 && (
           <div className="flex items-center justify-between mt-6 pt-4 border-t">
             <span className="text-sm text-gray-500">Menampilkan {currentPage} halaman dari {totalPages}</span>
@@ -318,7 +289,6 @@ export default function LaporanKerusakan() {
         )}
       </div>
 
-      {/* Form Laporan */}
       <form onSubmit={handleSubmit} className="border rounded-2xl p-6 space-y-5 bg-white shadow-sm">
         <h2 className="text-2xl font-bold">Buat Laporan</h2>
         
@@ -385,7 +355,6 @@ export default function LaporanKerusakan() {
           />
         </div>
 
-        {/* BUTTON TENGAH DAN SESUAI WARNA NAVBAR */}
         <div className="flex justify-center w-full mt-4 pt-4 border-t">
           <Button 
             type="submit" 

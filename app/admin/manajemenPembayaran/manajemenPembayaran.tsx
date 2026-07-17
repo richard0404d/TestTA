@@ -5,14 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Plus, Eye, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenPembayaran() {
-  // ============================================
-  // SUPABASE
-  // ============================================
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [openModal, setOpenModal] = useState(false);
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,20 +15,15 @@ export default function ManajemenPembayaran() {
   const [tagihanBelumBayar, setTagihanBelumBayar] = useState<any[]>([]);
   const [selectedDetail, setSelectedDetail] = useState<any>(null);
 
-  // ============================================
-  // PAGINATION STATE
-  // ============================================
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // Toast Notification State
   const [toast, setToast] = useState({
     show: false,
     message: "",
-    type: "success", // 'success' | 'error'
+    type: "success",
   });
 
-  // FORM STATE
   const [selectedTagihanId, setSelectedTagihanId] = useState("");
   const [autoFillData, setAutoFillData] = useState({
     nama_penyewa: "",
@@ -43,9 +32,6 @@ export default function ManajemenPembayaran() {
     total_tagihan: 0,
   });
 
-  // ============================================
-  // HELPER TOAST
-  // ============================================
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -53,9 +39,6 @@ export default function ManajemenPembayaran() {
     }, 3000);
   };
 
-  // ============================================
-  // HELPER FORMAT TANGGAL
-  // ============================================
   const formatTanggal = (isoString: string) => {
     if (!isoString) return "-";
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -65,9 +48,6 @@ export default function ManajemenPembayaran() {
     });
   };
 
-  // ============================================
-  // GET DATA UTAMA (DAFTAR PEMBAYARAN)
-  // ============================================
   const getPembayaran = async () => {
     const { data, error } = await supabase
       .from("pembayaran")
@@ -103,9 +83,6 @@ export default function ManajemenPembayaran() {
     setPembayarans(data || []);
   };
 
-  // ============================================
-  // GET DAFTAR TAGIHAN BELUM DIBAYAR UNTUK COMBOBOX
-  // ============================================
   const getTagihanBelumBayar = async () => {
     const { data, error } = await supabase
       .from("tagihan")
@@ -135,16 +112,10 @@ export default function ManajemenPembayaran() {
     setTagihanBelumBayar(data || []);
   };
 
-  // ============================================
-  // LOAD
-  // ============================================
   useEffect(() => {
     getPembayaran();
   }, []);
 
-  // ============================================
-  // HANDLE COMBOBOX KAMAR CHANGED
-  // ============================================
   const handleKamarChange = (idTagihan: string) => {
     setSelectedTagihanId(idTagihan);
     if (!idTagihan) {
@@ -168,9 +139,6 @@ export default function ManajemenPembayaran() {
     }
   };
 
-  // ============================================
-  // OPEN TAMBAH
-  // ============================================
   const handleOpenTambah = async () => {
     await getTagihanBelumBayar();
     setSelectedTagihanId("");
@@ -183,9 +151,6 @@ export default function ManajemenPembayaran() {
     setOpenModal(true);
   };
 
-  // ============================================
-  // INSERT PEMBAYARAN & UPDATE STATUS BERANTAI
-  // ============================================
   const handleSubmitPembayaran = async () => {
     // --- VALIDASI INPUT ---
     if (!selectedTagihanId || selectedTagihanId.trim() === "") {
@@ -198,9 +163,7 @@ export default function ManajemenPembayaran() {
       showToast("Data tagihan tidak valid atau sudah dibayar!", "error");
       return;
     }
-    // -----------------------
 
-    // Mengambil referensi ID untuk update table terkait
     const idSewa = matched.sewa?.id_sewa;
     const idKamar = matched.sewa?.kamar?.id_kamar || matched.sewa?.id_kamar;
     const idReservasi = matched.sewa?.reservasi?.id_reservasi || matched.sewa?.id_reservasi;
@@ -208,7 +171,6 @@ export default function ManajemenPembayaran() {
     try {
       setLoading(true);
 
-      // 1. Insert ke tabel pembayaran
       const { error: insertError } = await supabase.from("pembayaran").insert([
         {
           id_tagihan: Number(selectedTagihanId),
@@ -218,14 +180,12 @@ export default function ManajemenPembayaran() {
       ]);
       if (insertError) throw insertError;
 
-      // 2. Update status tagihan terkait menjadi 'Lunas'
       const { error: updateTagihanError } = await supabase
         .from("tagihan")
         .update({ status_tagihan: "Lunas" })
         .eq("id_tagihan", Number(selectedTagihanId));
       if (updateTagihanError) throw updateTagihanError;
 
-      // 3. Update status sewa menjadi 'Aktif'
       if (idSewa) {
         const { error: updateSewaError } = await supabase
           .from("sewa")
@@ -234,7 +194,6 @@ export default function ManajemenPembayaran() {
         if (updateSewaError) throw updateSewaError;
       }
 
-      // 4. Update status kamar menjadi 'Ditempati'
       if (idKamar) {
         const { error: updateKamarError } = await supabase
           .from("kamar")
@@ -243,7 +202,6 @@ export default function ManajemenPembayaran() {
         if (updateKamarError) throw updateKamarError;
       }
 
-      // 5. Update status reservasi menjadi 'Berhasil'
       if (idReservasi) {
         const { error: updateReservasiError } = await supabase
           .from("reservasi")
@@ -263,17 +221,11 @@ export default function ManajemenPembayaran() {
     }
   };
 
-  // ============================================
-  // OPEN DETAIL (EYE ACTION)
-  // ============================================
   const handleOpenDetail = (pembayaran: any) => {
     setSelectedDetail(pembayaran);
     setOpenDetailModal(true);
   };
 
-  // ============================================
-  // LOGIKA PAGINATION
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = pembayarans.slice(indexOfFirstItem, indexOfLastItem);
@@ -284,9 +236,6 @@ export default function ManajemenPembayaran() {
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
 
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION */}
-      {/* ============================================ */}
       {toast.show && (
         <div 
           className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
@@ -307,9 +256,6 @@ export default function ManajemenPembayaran() {
       )}
 
       <main className="pt-24 md:ml-[260px] p-5 md:p-8">
-        {/* ============================================ */}
-        {/* CARD */}
-        {/* ============================================ */}
         <div>
           <div className="bg-white rounded-3xl border shadow-sm p-6">
             {/* HEADER */}
@@ -323,7 +269,6 @@ export default function ManajemenPembayaran() {
                 </p>
               </div>
 
-              {/* BUTTON TAMBAH */}
               <button
                 onClick={handleOpenTambah}
                 className="flex items-center gap-2 bg-[#1c3163] hover:bg-[#16274f] text-white px-5 py-3 rounded-xl transition"
@@ -334,13 +279,9 @@ export default function ManajemenPembayaran() {
             </div>
           </div>
 
-          {/* ============================================ */}
-          {/* TABLE */}
-          {/* ============================================ */}
           <div className="pt-8">
             <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
               <table className="w-full min-w-[800px]">
-                {/* HEAD */}
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="text-left px-6 py-4 font-semibold text-gray-700">Nama Penyewa</th>
@@ -352,33 +293,27 @@ export default function ManajemenPembayaran() {
                   </tr>
                 </thead>
 
-                {/* BODY */}
                 <tbody>
                   {pembayarans.length > 0 ? (
-                    // MENGGUNAKAN currentItems BUKAN pembayarans
                     currentItems.map((pembayaran, index) => (
                       <tr key={index} className="border-t hover:bg-gray-50 transition">
                         {/* NAMA PENYEWA */}
                         <td className="px-6 py-4 text-black">
                           {pembayaran.tagihan?.sewa?.penyewa?.nama_penyewa || "Penyewa"}
                         </td>
-                        
-                        {/* NOMOR KAMAR */}
+
                         <td className="px-6 py-4 text-black">
                           Kamar {pembayaran.tagihan?.sewa?.kamar?.id_kamar || "-"}
                         </td>
-                        
-                        {/* JUMLAH PEMBAYARAN */}
+
                         <td className="px-6 py-4 text-black">
                           Rp {(pembayaran.tagihan?.total_tagihan || 0).toLocaleString("id-ID")}
                         </td>
-                        
-                        {/* TANGGAL PEMBAYARAN */}
+
                         <td className="px-6 py-4 text-black">
                           {formatTanggal(pembayaran.tanggal_pembayaran)}
                         </td>
-                        
-                        {/* STATUS */}
+
                         <td className="px-6 py-4 text-center">
                           <span
                             className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -392,8 +327,7 @@ export default function ManajemenPembayaran() {
                             {pembayaran.status_pembayaran}
                           </span>
                         </td>
-                        
-                        {/* AKSI */}
+
                         <td className="px-6 py-4 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
@@ -417,9 +351,6 @@ export default function ManajemenPembayaran() {
                 </tbody>
               </table>
 
-              {/* ============================================ */}
-              {/* PAGINATION UI */}
-              {/* ============================================ */}
               {pembayarans.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
                   
@@ -468,13 +399,9 @@ export default function ManajemenPembayaran() {
           </div>
         </div>
 
-        {/* ============================================ */}
-        {/* MODAL TAMBAH PEMBAYARAN */}
-        {/* ============================================ */}
         {openModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 relative animate-in fade-in zoom-in duration-200">
-              {/* CLOSE */}
               <button
                 onClick={() => setOpenModal(false)}
                 className="absolute top-5 right-5 text-gray-400 hover:text-red-500 transition"
@@ -553,14 +480,10 @@ export default function ManajemenPembayaran() {
           </div>
         )}
 
-        {/* ============================================ */}
-        {/* MODAL DETAIL PEMBAYARAN */}
-        {/* ============================================ */}
         {openDetailModal && selectedDetail && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 relative">
-              
-              {/* HEADER */}
+
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">
                   Detail Pembayaran
@@ -577,7 +500,6 @@ export default function ManajemenPembayaran() {
               </div>
 
               <div className="space-y-4">
-                {/* NAMA */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Nama Penyewa
@@ -590,7 +512,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* KAMAR */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Nomor Kamar
@@ -603,7 +524,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* PENGHUNI */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Jumlah Penghuni
@@ -616,7 +536,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* JUMLAH PEMBAYARAN */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Jumlah Pembayaran
@@ -629,7 +548,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* STATUS */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Status Pembayaran
@@ -644,7 +562,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* TANGGAL */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Tanggal Pembayaran
@@ -657,7 +574,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* TELEPON */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Nomor Telepon
@@ -670,7 +586,6 @@ export default function ManajemenPembayaran() {
                   />
                 </div>
 
-                {/* EMAIL */}
                 <div>
                   <label className="font-semibold text-gray-700">
                     Email

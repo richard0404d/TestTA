@@ -18,9 +18,7 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, CheckCircle, AlertCircle, X } from "lucide-react";
 
 export default function UpdatePasswordPage() {
-  // ============================================
-  // STATE
-  // ============================================
+
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +34,6 @@ export default function UpdatePasswordPage() {
 
   const router = useRouter();
 
-  // Helper Toast
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -44,13 +41,9 @@ export default function UpdatePasswordPage() {
     }, 3000);
   };
 
-  // ============================================
-  // HANDLE UPDATE PASSWORD
-  // ============================================
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // --- VALIDASI INPUT ---
     if (!password || password.length < 6) {
       return showToast("Password baru minimal 6 karakter!", "error");
     }
@@ -63,7 +56,7 @@ export default function UpdatePasswordPage() {
     const supabase = createClient();
 
     try {
-      // Perintah Supabase untuk memperbarui password user yang sedang aktif
+
       const { error } = await supabase.auth.updateUser({
         password: password,
       });
@@ -71,8 +64,7 @@ export default function UpdatePasswordPage() {
       if (error) throw new Error(error.message);
 
       showToast("Password berhasil diubah! Silakan login kembali.", "success");
-      
-      // Bersihkan sesi dan arahkan ke halaman Sign In setelah 2 detik
+ 
       setTimeout(async () => {
         await supabase.auth.signOut();
         router.push("/authentication/sign-in");
@@ -86,14 +78,10 @@ export default function UpdatePasswordPage() {
     }
   };
 
-  // ============================================
-  // UI
-  // ============================================
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border">
         
-        {/* TOAST NOTIFICATION */}
         {toast.show && (
           <div 
             className={`fixed top-10 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${
@@ -126,7 +114,6 @@ export default function UpdatePasswordPage() {
               </p>
             </div>
 
-            {/* PASSWORD BARU */}
             <Field>
               <FieldLabel htmlFor="password">Password Baru</FieldLabel>
               <InputGroup>
@@ -148,7 +135,6 @@ export default function UpdatePasswordPage() {
               </InputGroup>
             </Field>
 
-            {/* KONFIRMASI PASSWORD BARU */}
             <Field>
               <FieldLabel htmlFor="confirmPassword">Konfirmasi Password Baru</FieldLabel>
               <InputGroup>
@@ -170,7 +156,6 @@ export default function UpdatePasswordPage() {
               </InputGroup>
             </Field>
 
-            {/* BUTTON SUBMIT */}
             <Field className="mt-4">
               <Button type="submit" disabled={isLoading} className="w-full bg-[#1c3163] hover:bg-[#15254b]">
                 {isLoading ? "Menyimpan..." : "Simpan Password Baru"}

@@ -1,4 +1,3 @@
-// app/api/send-pembayaran-email/route.ts
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
@@ -12,9 +11,6 @@ export async function POST(req: Request) {
       tanggalPembayaran
     } = body;
 
-    // ============================================
-    // FUNCTION SEND EMAIL (Brevo)
-    // ============================================
     const sendEmail = async (to: string, subject: string, html: string) => {
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -26,7 +22,7 @@ export async function POST(req: Request) {
         body: JSON.stringify({
           sender: {
             name: "Kos 75",
-            email: "rumahkos2an@gmail.com", // PASTIKAN EMAIL INI SUDAH DIVERIFIKASI DI BREVO
+            email: "rumahkos2an@gmail.com", 
           },
           to: [{ email: to }],
           subject: subject,
@@ -36,7 +32,6 @@ export async function POST(req: Request) {
 
       const data = await response.json();
 
-      // PERBAIKAN: Tangkap error jika Brevo menolak request
       if (!response.ok) {
         console.error("BREVO REJECTED:", data);
         throw new Error(data.message || "Gagal mengirim email via Brevo");
@@ -45,9 +40,6 @@ export async function POST(req: Request) {
       return data;
     };
 
-    // ============================================
-    // HTML TEMPLATE
-    // ============================================
     const htmlTemplate = `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
         <h2 style="color: #1c3163;">Konfirmasi Pembayaran Kos 75</h2>
@@ -64,9 +56,6 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    // ============================================
-    // KIRIM KE PENYEWA
-    // ============================================
     if (emailPenyewa) {
       await sendEmail(
         emailPenyewa,
@@ -75,9 +64,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // ============================================
-    // KIRIM KE ADMIN
-    // ============================================
     await sendEmail(
       "rumahkos2an@gmail.com",
       `Notifikasi Pembayaran Baru - Kamar ${idKamar}`,

@@ -19,7 +19,6 @@ export default function SignUpPage() {
                 className="object-contain"
               />
             </div>
-            {/* ================================= */}
 
             Kos 75
           </a>

@@ -79,7 +79,6 @@ export default function PembayaranPage() {
       const user = authData.user;
       if (!user) return;
 
-      // 1. Ambil SEMUA data sewa milik penyewa ini (termasuk yang sudah "Berakhir")
       const { data: semuaSewaUser } = await supabase
         .from("sewa")
         .select(`id_sewa, tanggal_berakhir_sewa, status_sewa`)
@@ -88,31 +87,27 @@ export default function PembayaranPage() {
       const { data: penyewaData } = await supabase.from("penyewa").select("*").eq("id_penyewa", user.id).single();
       setPenyewa(penyewaData);
 
-      // 2. Ambil SEMUA pembayaran, urutkan dari yang terbaru
       const { data: pembayaranData } = await supabase
         .from("pembayaran")
         .select(`*, tagihan (*, sewa (*))`)
         .order("tanggal_pembayaran", { ascending: false });
 
-      // 3. Cocokkan histori pembayaran dengan SEMUA riwayat sewa (Agar yang "Berakhir" tetap muncul)
       const filteredHistory = (pembayaranData || []).filter((item) =>
         semuaSewaUser?.some((s) => s.id_sewa === item.tagihan?.id_sewa)
       );
       setHistories(filteredHistory);
 
-      // 4. Filter id_sewa yang HANYA AKTIF untuk mengecek tagihan yang belum dibayar
       const sewaAktifIds = semuaSewaUser?.filter(s => s.status_sewa !== "Berakhir").map(s => s.id_sewa) || [];
 
-      // 5. Ambil tagihan "Belum Dibayar" hanya untuk kamar yang saat ini aktif
       const { data: tagihanData, error: tagihanError } = await supabase
         .from("tagihan")
         .select(`*, sewa (*, kamar (*))`)
-        .in("id_sewa", sewaAktifIds.length > 0 ? sewaAktifIds : [0]) // Hindari error array kosong
+        .in("id_sewa", sewaAktifIds.length > 0 ? sewaAktifIds : [0]) 
         .eq("status_tagihan", "Belum Dibayar")
         .order("created_at", { ascending: false });
 
       if (!tagihanError && tagihanData && tagihanData.length > 0) {
-        // Filter ganda: pastikan tagihan belum dilunasi di tabel pembayaran
+
         const tagihanBelumLunas = tagihanData.filter(t => 
           !filteredHistory.some(h => h.id_tagihan === t.id_tagihan && h.status_pembayaran === "Berhasil")
         );

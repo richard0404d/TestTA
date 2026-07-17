@@ -42,15 +42,11 @@ export function LoginForm({
   ...props
 }: React.ComponentProps<"form">) {
 
-  // ============================================
-  // STATE
-  // ============================================
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // State untuk Toast Notification
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -65,7 +61,6 @@ export function LoginForm({
 
   const router = useRouter();
 
-  // Helper Toast
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -73,9 +68,6 @@ export function LoginForm({
     }, 3000);
   };
 
-  // ============================================
-  // HANDLE LOGIN
-  // ============================================
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -114,7 +106,6 @@ export function LoginForm({
         throw new Error("User tidak ditemukan");
       }
 
-      // CEK TABEL PENYEWA
       const { data: penyewa, error: penyewaError } = await supabase
         .from("penyewa")
         .select("id_penyewa, status_penyewa")
@@ -132,7 +123,6 @@ export function LoginForm({
         return;
       }
 
-      // CEK TABEL PEGAWAI
       const { data: pegawai, error: pegawaiError } = await supabase
         .from("pegawai")
         .select("id_role, status_pegawai")
@@ -163,9 +153,6 @@ export function LoginForm({
     }
   };
 
-  // ============================================
-  // UI
-  // ============================================
   return (
     <>
       {toast.show && (
@@ -195,7 +182,7 @@ export function LoginForm({
         noValidate 
       >
         <FieldGroup>
-          {/* TITLE */}
+
           <div className="flex flex-col items-center gap-1 text-center">
             <h1 className="text-2xl font-bold">
               Masuk ke akun Anda
@@ -205,7 +192,6 @@ export function LoginForm({
             </p>
           </div>
 
-          {/* EMAIL */}
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input
@@ -217,7 +203,6 @@ export function LoginForm({
             />
           </Field>
 
-          {/* PASSWORD */}
           <Field>
             <FieldLabel htmlFor="password">Password</FieldLabel>
             <InputGroup>
@@ -238,7 +223,6 @@ export function LoginForm({
               </InputGroupAddon>
             </InputGroup>
             
-            {/* LUPA PASSWORD - SEKARANG DI BAWAH INPUT & JADI LINK */}
             <div className="flex justify-end mt-1">
               <Link 
                 href="/authentication/forgot-password"
@@ -249,14 +233,12 @@ export function LoginForm({
             </div>
           </Field>
 
-          {/* BUTTON */}
           <Field>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? "Logging in..." : "Login"}
             </Button>
           </Field>
 
-          {/* REGISTER LINK */}
           <div className="text-center text-sm text-muted-foreground mt-2">
             Belum punya akun?{" "}
             <Link 
@@ -267,7 +249,6 @@ export function LoginForm({
             </Link>
           </div>
 
-          {/* COPYRIGHT */}
           <FieldDescription className="text-center mt-4">
             Copyright © {mounted ? new Date().getFullYear() : ""}
             <br />

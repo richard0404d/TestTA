@@ -5,72 +5,49 @@ import { createClient } from "@/lib/supabase/client";
 import { Plus, Pencil, Trash2, Eye, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenFasilitas() {
-  // ============================================
-  // SUPABASE
-  // ============================================
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [openModal, setOpenModal] = useState(false);
   const [openMasterModal, setOpenMasterModal] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // ID untuk Edit
-  const [editId, setEditId] = useState<number | null>(null); // Untuk detail fasilitas
-  const [editMasterId, setEditMasterId] = useState<number | null>(null); // Untuk master fasilitas
+  const [editId, setEditId] = useState<number | null>(null); 
+  const [editMasterId, setEditMasterId] = useState<number | null>(null); 
 
   const [dataFasilitas, setDataFasilitas] = useState<any[]>([]);
   const [masterFasilitas, setMasterFasilitas] = useState<any[]>([]);
   const [kamar, setKamar] = useState<any[]>([]);
   const [detailData, setDetailData] = useState<any | null>(null);
 
-  // State untuk Konfirmasi Hapus
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
-  // ============================================
-  // PAGINATION STATE
-  // ============================================
   const [currentPageDetail, setCurrentPageDetail] = useState(1);
   const [currentPageMaster, setCurrentPageMaster] = useState(1);
   const itemsPerPage = 5;
 
-  // ============================================
-  // TOAST NOTIFICATION STATE
-  // ============================================
   const [toast, setToast] = useState({
     show: false,
     message: "",
-    type: "success", // 'success' | 'error'
+    type: "success",
   });
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: "", type: "success" });
-    }, 3000); // otomatis hilang dalam 3 detik
+    }, 3000);
   };
 
-  // ============================================
-  // FORM DETAIL
-  // ============================================
   const [form, setForm] = useState({
     id_kamar: "",
     id_fasilitas: "",
     kondisi_fasilitas: "Baik",
-    informasi_tambahan: "", // NEW: Kolom baru untuk daya listrik, ukuran, dll
+    informasi_tambahan: "",
   });
 
-  // ============================================
-  // FORM MASTER
-  // ============================================
   const [namaFasilitas, setNamaFasilitas] = useState("");
 
-  // ============================================
-  // GET KAMAR
-  // ============================================
   const getKamar = async () => {
     const { data, error } = await supabase
       .from("kamar")
@@ -84,9 +61,6 @@ export default function ManajemenFasilitas() {
     setKamar(data || []);
   };
 
-  // ============================================
-  // GET MASTER FASILITAS
-  // ============================================
   const getMasterFasilitas = async () => {
     const { data, error } = await supabase
       .from("fasilitas")
@@ -100,9 +74,6 @@ export default function ManajemenFasilitas() {
     setMasterFasilitas(data || []);
   };
 
-  // ============================================
-  // GET DETAIL FASILITAS
-  // ============================================
   const getDetailFasilitas = async () => {
     try {
       // GET DETAIL
@@ -135,7 +106,6 @@ export default function ManajemenFasilitas() {
         return;
       }
 
-      // JOIN MANUAL
       const finalData = detailDataFetch.map((item) => {
         const fasilitas = fasilitasData.find(
           (f: any) => Number(f.id_fasilitas) === Number(item.id_fasilitas)
@@ -157,18 +127,12 @@ export default function ManajemenFasilitas() {
     }
   };
 
-  // ============================================
-  // LOAD DATA
-  // ============================================
   useEffect(() => {
     getKamar();
     getMasterFasilitas();
     getDetailFasilitas();
   }, []);
 
-  // ============================================
-  // HANDLE CHANGE DETAIL
-  // ============================================
   const handleChange = (e: any) => {
     setForm({
       ...form,
@@ -176,9 +140,6 @@ export default function ManajemenFasilitas() {
     });
   };
 
-  // ============================================
-  // SAVE DETAIL
-  // ============================================
   const handleSave = async () => {
     // --- VALIDASI INPUT ---
     if (!form.id_kamar && !form.id_fasilitas) return showToast("Harap mengisi semua field wajib!", "error");
@@ -197,7 +158,7 @@ export default function ManajemenFasilitas() {
             id_kamar: Number(form.id_kamar),
             id_fasilitas: Number(form.id_fasilitas),
             kondisi_fasilitas: form.kondisi_fasilitas,
-            informasi_tambahan: form.informasi_tambahan, // Save NEW FIELD
+            informasi_tambahan: form.informasi_tambahan,
           })
           .eq("id_detail_fasiliitas_kamar", editId);
 
@@ -224,7 +185,7 @@ export default function ManajemenFasilitas() {
             id_kamar: Number(form.id_kamar),
             id_fasilitas: Number(form.id_fasilitas),
             kondisi_fasilitas: form.kondisi_fasilitas,
-            informasi_tambahan: form.informasi_tambahan, // Save NEW FIELD
+            informasi_tambahan: form.informasi_tambahan,
           },
         ]);
 
@@ -244,18 +205,12 @@ export default function ManajemenFasilitas() {
     }
   };
 
-  // ============================================
-  // BUKA MODAL EDIT MASTER
-  // ============================================
   const handleEditMaster = (item: any) => {
     setEditMasterId(item.id_fasilitas);
     setNamaFasilitas(item.nama_fasilitas);
     setOpenMasterModal(true);
   };
 
-  // ============================================
-  // SAVE MASTER (INSERT ATAU UPDATE)
-  // ============================================
   const handleSaveMaster = async () => {
     try {
       const trimmedNama = namaFasilitas.trim();
@@ -266,7 +221,7 @@ export default function ManajemenFasilitas() {
 
       // Pengecekan duplikasi nama fasilitas
       const isDuplicate = masterFasilitas.some((item) => {
-        // Jika sedang mode edit, lewati pengecekan untuk ID fasilitas yang sama
+
         if (editMasterId && item.id_fasilitas === editMasterId) {
           return false;
         }
@@ -309,17 +264,11 @@ export default function ManajemenFasilitas() {
     }
   };
 
-  // ============================================
-  // TRIGGER DELETE FASILITAS (Buka Modal)
-  // ============================================
   const triggerDeleteFasilitas = (id: number) => {
     setDeleteTargetId(id);
     setShowConfirmDelete(true);
   };
 
-  // ============================================
-  // EKSEKUSI DELETE FASILITAS
-  // ============================================
   const executeDeleteFasilitas = async () => {
     if (deleteTargetId === null) return;
 
@@ -351,9 +300,6 @@ export default function ManajemenFasilitas() {
     }
   };
 
-  // ============================================
-  // LOGIKA PAGINATION (DETAIL FASILITAS GROUPED BY KAMAR)
-  // ============================================
   const groupedDataDetail = dataFasilitas.reduce((acc: any, item: any) => {
     const kamarId = item.id_kamar;
     if (!acc[kamarId]) acc[kamarId] = [];
@@ -367,9 +313,6 @@ export default function ManajemenFasilitas() {
   const currentDetailEntries = detailEntries.slice(indexOfFirstDetail, indexOfLastDetail);
   const totalPagesDetail = Math.ceil(detailEntries.length / itemsPerPage);
 
-  // ============================================
-  // LOGIKA PAGINATION (MASTER FASILITAS)
-  // ============================================
   const indexOfLastMaster = currentPageMaster * itemsPerPage;
   const indexOfFirstMaster = indexOfLastMaster - itemsPerPage;
   const currentMasterItems = masterFasilitas.slice(indexOfFirstMaster, indexOfLastMaster);
@@ -377,10 +320,7 @@ export default function ManajemenFasilitas() {
 
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
-      
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION */}
-      {/* ============================================ */}
+
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
           toast.type === "success" ? "bg-green-100 text-green-800 border border-green-200" : "bg-red-100 text-red-800 border border-red-200"
@@ -394,10 +334,7 @@ export default function ManajemenFasilitas() {
       )}
 
       <main className="pt-24 md:ml-[260px] p-5 md:p-8">
-        
-        {/* ============================================ */}
-        {/* HEADER & TABLE DETAIL FASILITAS */}
-        {/* ============================================ */}
+
         <div>
           <div className="bg-white rounded-3xl border shadow-sm p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -485,9 +422,6 @@ export default function ManajemenFasilitas() {
           </div>
         </div>
 
-        {/* ============================================ */}
-        {/* MASTER FASILITAS */}
-        {/* ============================================ */}
         <div className="pt-16">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
             <div>
@@ -545,7 +479,6 @@ export default function ManajemenFasilitas() {
               </tbody>
             </table>
 
-            {/* PAGINATION MASTER FASILITAS */}
             {masterFasilitas.length > 0 && (
               <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
                 <div className="text-sm text-gray-500">
@@ -571,9 +504,6 @@ export default function ManajemenFasilitas() {
           </div>
         </div>
 
-        {/* ============================================ */}
-        {/* MODAL TAMBAH/EDIT DETAIL */}
-        {/* ============================================ */}
         {openModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl p-8 shadow-2xl relative animate-in fade-in zoom-in duration-200">
@@ -619,7 +549,6 @@ export default function ManajemenFasilitas() {
                   </select>
                 </div>
 
-                {/* NEW INPUT: INFORMASI TAMBAHAN */}
                 <div>
                   <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">Informasi Tambahan <span className="text-gray-400 font-normal">(Daya, Ukuran, Merek, dll)</span></label>
                   <input 
@@ -643,9 +572,6 @@ export default function ManajemenFasilitas() {
           </div>
         )}
 
-        {/* ============================================ */}
-        {/* MODAL TAMBAH/EDIT MASTER FASILITAS */}
-        {/* ============================================ */}
         {openMasterModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-xl rounded-3xl p-8 shadow-2xl relative animate-in fade-in zoom-in duration-200">
@@ -674,9 +600,6 @@ export default function ManajemenFasilitas() {
           </div>
         )}
 
-        {/* ============================================ */}
-        {/* MODAL DETAIL VIEW (MATA) */}
-        {/* ============================================ */}
         {detailData && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]">
             <div className="bg-white w-full max-w-3xl rounded-3xl p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
@@ -802,9 +725,6 @@ export default function ManajemenFasilitas() {
           </div>
         )}
 
-        {/* ============================================ */}
-        {/* MODAL KONFIRMASI HAPUS FASILITAS */}
-        {/* ============================================ */}
         {showConfirmDelete && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[70] p-4">
             <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">

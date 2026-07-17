@@ -7,10 +7,6 @@ export async function POST(
 
   try {
 
-    // ============================================
-    // BODY
-    // ============================================
-
     const body =
       await req.json();
 
@@ -21,10 +17,6 @@ export async function POST(
       totalHarga,
       status,
     } = body;
-
-    // ============================================
-    // FUNCTION SEND EMAIL
-    // ============================================
 
     const sendEmail =
       async (
@@ -80,10 +72,6 @@ export async function POST(
         );
       };
 
-    // ============================================
-    // EMAIL PENYEWA
-    // ============================================
-
     if (emailPenyewa) {
 
       await sendEmail(
@@ -131,10 +119,6 @@ export async function POST(
       );
     }
 
-    // ============================================
-    // EMAIL ADMIN
-    // ============================================
-
     await sendEmail(
 
       "rumahkos2an@gmail.com",
@@ -174,10 +158,6 @@ export async function POST(
       </div>
       `
     );
-
-    // ============================================
-    // SUCCESS
-    // ============================================
 
     return NextResponse.json({
       success: true,

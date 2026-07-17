@@ -30,23 +30,13 @@ export default function ManajemenSewa() {
   const [selectedDetail, setSelectedDetail] =
     useState<any>(null);
 
-  // ============================================
-  // PAGINATION STATE
-  // ============================================
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-
-  // ============================================
-  // LOAD DATA
-  // ============================================
 
   useEffect(() => {
     getSewa();
   }, []);
 
-  // ============================================
-  // GET DATA
-  // ============================================
 
   async function getSewa() {
 
@@ -97,10 +87,6 @@ export default function ManajemenSewa() {
     setLoading(false);
   }
 
-  // ============================================
-  // FORMAT TANGGAL
-  // ============================================
-
   function formatTanggal(
     tanggal: string
   ) {
@@ -120,9 +106,6 @@ export default function ManajemenSewa() {
     );
   }
 
-  // ============================================
-  // LOGIKA PAGINATION
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = sewaList.slice(indexOfFirstItem, indexOfLastItem);
@@ -135,10 +118,6 @@ export default function ManajemenSewa() {
 
       <div className="md:pt-20">
 
-        {/* ============================================ */}
-        {/* HEADER */}
-        {/* ============================================ */}
-
         <div className="bg-white rounded-3xl border shadow-sm p-6">
 
           <h1 className="text-3xl font-bold text-gray-800">
@@ -150,10 +129,6 @@ export default function ManajemenSewa() {
           </p>
 
         </div>
-
-        {/* ============================================ */}
-        {/* TABLE */}
-        {/* ============================================ */}
 
         <div className="pt-8">
 
@@ -232,7 +207,6 @@ export default function ManajemenSewa() {
                       className="border-t hover:bg-gray-50 transition"
                     >
 
-                      {/* NAMA */}
                       <td className="px-6 py-4 text-gray-800 font-medium">
 
                         {
@@ -242,7 +216,6 @@ export default function ManajemenSewa() {
 
                       </td>
 
-                      {/* KAMAR */}
                       <td className="px-6 py-4 text-gray-800">
 
                         Kamar {
@@ -251,7 +224,6 @@ export default function ManajemenSewa() {
 
                       </td>
 
-                      {/* PENGHUNI */}
                       <td className="px-6 py-4 text-gray-800">
 
                         {
@@ -263,7 +235,6 @@ export default function ManajemenSewa() {
 
                       </td>
 
-                      {/* STATUS */}
                       <td className="px-6 py-4">
 
                         <span
@@ -282,7 +253,6 @@ export default function ManajemenSewa() {
 
                       </td>
 
-                      {/* AKSI */}
                       <td className="px-6 py-4">
                         <div className="flex justify-center">
                           <button
@@ -308,9 +278,6 @@ export default function ManajemenSewa() {
 
             </table>
 
-            {/* ============================================ */}
-            {/* PAGINATION UI */}
-            {/* ============================================ */}
             {!loading && sewaList.length > 0 && (
               <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
                 
@@ -361,10 +328,6 @@ export default function ManajemenSewa() {
 
       </div>
 
-      {/* ============================================ */}
-      {/* MODAL DETAIL */}
-      {/* ============================================ */}
-
       {selectedDetail && (
 
         <div
@@ -393,7 +356,6 @@ export default function ManajemenSewa() {
             "
           >
 
-            {/* CLOSE BUTTON */}
             <button
               onClick={() =>
                 setSelectedDetail(
@@ -405,13 +367,11 @@ export default function ManajemenSewa() {
               <X size={24} />
             </button>
 
-            {/* TITLE */}
             <h2 className="text-3xl font-bold text-gray-800 mb-8">
               Detail Sewa
             </h2>
 
             <div className="space-y-5">
-              {/* NAMA */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
@@ -428,7 +388,6 @@ export default function ManajemenSewa() {
 
               </div>
 
-              {/* KAMAR */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
@@ -441,7 +400,6 @@ export default function ManajemenSewa() {
 
               </div>
 
-              {/* PENGHUNI */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
@@ -454,7 +412,6 @@ export default function ManajemenSewa() {
 
               </div>
 
-              {/* STATUS */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
@@ -469,7 +426,6 @@ export default function ManajemenSewa() {
 
               </div>
 
-              {/* TANGGAL */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
@@ -484,7 +440,6 @@ export default function ManajemenSewa() {
 
               </div>
 
-              {/* TELEPON */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">
@@ -501,7 +456,6 @@ export default function ManajemenSewa() {
 
               </div>
 
-              {/* EMAIL */}
               <div>
 
                 <label className="block mb-2 text-sm font-medium text-gray-700 ml-1">

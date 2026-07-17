@@ -7,9 +7,6 @@ import { Plus, Pencil, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, E
 export default function ManajemenKamar() {
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [openModal, setOpenModal] = useState(false);
   const [detailModal, setDetailModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,9 +34,6 @@ export default function ManajemenKamar() {
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
-  // ============================================
-  // GET DATA KAMAR
-  // ============================================
   const getKamar = async () => {
     const { data, error } = await supabase
       .from("kamar")
@@ -73,16 +67,12 @@ export default function ManajemenKamar() {
     setOpenModal(true);
   };
 
-  // ============================================
-  // HANDLE VIEW DETAIL
-  // ============================================
   const handleViewDetail = async (kamar: any) => {
     setSelectedKamar(kamar);
     setDetailModal(true);
     setInfoPenyewa(null);
     setFasilitasKamar([]);
 
-    // 1. AMBIL DATA FASILITAS
     try {
       const { data: fasData } = await supabase
         .from("detail_fasilitas_kamar")
@@ -94,7 +84,6 @@ export default function ManajemenKamar() {
       console.error("Gagal memuat fasilitas:", err);
     }
 
-    // 2. AMBIL DATA PENYEWA
     if (kamar.status_kamar === "Ditempati") {
       try {
         const { data }: { data: any } = await supabase
@@ -142,9 +131,6 @@ export default function ManajemenKamar() {
     }
   };
 
-  // ============================================
-  // INSERT / UPDATE
-  // ============================================
   const handleSubmit = async () => {
     if (!form.harga_sewa_kamar && form.harga_sewa_kamar.toString().trim() === "") {
       return showToast("Harap mengisi semua field wajib!", "error");
@@ -181,7 +167,6 @@ export default function ManajemenKamar() {
     }
   };
 
-  // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = kamers.slice(indexOfFirstItem, indexOfLastItem);
@@ -191,7 +176,6 @@ export default function ManajemenKamar() {
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
       
-      {/* TOAST */}
       {toast.show && (
         <div className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 ${toast.type === "success" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
           {toast.type === "success" ? <CheckCircle size={24} /> : <AlertCircle size={24} />}
@@ -213,7 +197,6 @@ export default function ManajemenKamar() {
           </div>
         </div>
 
-        {/* TABLE */}
         <div className="overflow-x-auto rounded-2xl border bg-white flex flex-col">
           <table className="w-full min-w-[800px]">
             <thead className="bg-gray-100">
@@ -253,7 +236,6 @@ export default function ManajemenKamar() {
             </tbody>
           </table>
 
-          {/* PAGINATION UI */}
           {kamers.length > 0 && (
             <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
               <div className="text-sm text-gray-500">Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, kamers.length)} dari {kamers.length} data</div>
@@ -270,9 +252,6 @@ export default function ManajemenKamar() {
           )}
         </div>
 
-        {/* ============================================ */}
-        {/* MODAL FORM EDIT / TAMBAH */}
-        {/* ============================================ */}
         {openModal && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 relative">
@@ -309,9 +288,6 @@ export default function ManajemenKamar() {
           </div>
         )}
 
-        {/* ============================================ */}
-        {/* MODAL DETAIL KAMAR (UI BARU) */}
-        {/* ============================================ */}
         {detailModal && selectedKamar && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 relative animate-in fade-in zoom-in duration-200">
@@ -326,8 +302,7 @@ export default function ManajemenKamar() {
               </div>
 
               <div className="space-y-8">
-                
-                {/* INFO DASAR */}
+
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Harga Sewa / Bulan</p>
@@ -339,7 +314,6 @@ export default function ManajemenKamar() {
                   </div>
                 </div>
 
-                {/* FASILITAS */}
                 <div>
                   <h3 className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Fasilitas Kamar</h3>
                   <div className="bg-white border border-gray-100 shadow-sm rounded-xl p-5 text-gray-600 min-h-[80px]">
@@ -359,7 +333,6 @@ export default function ManajemenKamar() {
                   </div>
                 </div>
 
-                {/* INFO PENYEWA */}
                 {(selectedKamar.status_kamar === "Ditempati" || selectedKamar.status_kamar === "Direservasi") && (
                   <div>
                     <h3 className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">Informasi {infoPenyewa?.tipe || "Sewa"}</h3>

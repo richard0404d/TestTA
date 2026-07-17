@@ -9,7 +9,6 @@ export default function LoginPage() {
         <div className="flex justify-center gap-2 md:justify-start">
           <a href="/authentication/sign-in" className="flex items-center gap-3 font-semibold text-lg">
             
-            {/* CONTAINER LOGO DIPERBARUI DI SINI */}
             <div className="bg-black flex size-9 items-center justify-center rounded-xl shadow-sm">
               <Image
                 src="/images/LogoKos.png"
@@ -19,7 +18,6 @@ export default function LoginPage() {
                 className="object-contain"
               />
             </div>
-            {/* ================================= */}
             
             Kos 75
           </a>

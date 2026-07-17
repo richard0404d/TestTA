@@ -8,7 +8,6 @@ export async function updateSession(
   request: NextRequest
 ) {
 
-  // IZINKAN API MIDTRANS
   if (
     request.nextUrl.pathname.startsWith(
       "/api/midtrans"
@@ -23,9 +22,6 @@ export async function updateSession(
       request,
     });
 
-  // ============================================
-  // SUPABASE CLIENT
-  // ============================================
 
   const supabase =
     createServerClient(
@@ -74,24 +70,15 @@ export async function updateSession(
       }
     );
 
-  // ============================================
-  // GET USER
-  // ============================================
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // ============================================
-  // LOGIN PATH
-  // ============================================
 
   const loginPath =
     "/authentication/sign-in";
 
-  // ============================================
-  // JIKA BELUM LOGIN
-  // ============================================
 
   if (
     !user &&
@@ -115,9 +102,6 @@ export async function updateSession(
     );
   }
 
-  // ============================================
-  // JIKA SUDAH LOGIN
-  // ============================================
 
   if (
     user &&
@@ -126,9 +110,6 @@ export async function updateSession(
     )
   ) {
 
-    // ============================================
-    // CEK PEGAWAI
-    // ============================================
 
     const {
       data: pegawai,
@@ -143,9 +124,6 @@ export async function updateSession(
       .eq("id_pegawai", user.id)
       .single();
 
-    // ============================================
-    // JIKA PEGAWAI
-    // ============================================
 
     if (
       pegawai &&
@@ -161,7 +139,6 @@ export async function updateSession(
       const url =
         request.nextUrl.clone();
 
-      // ADMIN / PEMILIK
       if (
         roleName === "admin" ||
         roleName === "pemilik"
@@ -176,9 +153,6 @@ export async function updateSession(
       }
     }
 
-    // ============================================
-    // CEK PENYEWA
-    // ============================================
 
     const {
       data: penyewa,
@@ -188,9 +162,6 @@ export async function updateSession(
       .eq("id_penyewa", user.id)
       .single();
 
-    // ============================================
-    // JIKA PENYEWA
-    // ============================================
 
     if (penyewa) {
 

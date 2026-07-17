@@ -105,7 +105,7 @@ export default function TagihanPage() {
                   </div>
 
                   <div className="md:flex md:justify-end">
-                    {/* PERBAIKAN: Mengirim ID tagihan melalui URL parameter */}
+  
                     <Link href={`/user/pembayaran?tagihan_id=${item.id_tagihan}`}>
                       <Button className="w-full md:w-auto px-8 py-6 rounded-xl text-base bg-[#2C5EBF] hover:bg-[#244ea0]">
                         Bayar

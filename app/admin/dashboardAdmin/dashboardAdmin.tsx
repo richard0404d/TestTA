@@ -17,9 +17,6 @@ import {
 export default function DashboardContent() {
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [stats, setStats] = useState({
     total: 0,
     ditempati: 0,
@@ -30,9 +27,6 @@ export default function DashboardContent() {
 
   const [loading, setLoading] = useState(true);
 
-  // ============================================
-  // FETCH DATA DARI SUPABASE
-  // ============================================
   const getKamarData = async () => {
     try {
       setLoading(true);
@@ -65,9 +59,6 @@ export default function DashboardContent() {
     getKamarData();
   }, []);
 
-  // ============================================
-  // KONFIGURASI CARD STATISTIK
-  // ============================================
   const statCards = [
     {
       title: "Total Kamar",
@@ -99,9 +90,6 @@ export default function DashboardContent() {
     },
   ];
 
-  // ============================================
-  // DATA UNTUK GRAFIK BAR
-  // ============================================
   const chartData = [
     { name: "Tersedia", jumlah: stats.tersedia, color: "#10B981" }, // Hijau
     { name: "Ditempati", jumlah: stats.ditempati, color: "#EF4444" }, // Merah
@@ -111,10 +99,7 @@ export default function DashboardContent() {
 
   return (
     <main className="flex-1 p-5 md:p-8 md:ml-[260px]">
-      
-      {/* ============================================ */}
-      {/* KARTU STATISTIK */}
-      {/* ============================================ */}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8 pt-20">
         {statCards.map((item, index) => (
           <div
@@ -136,9 +121,6 @@ export default function DashboardContent() {
         ))}
       </div>
 
-      {/* ============================================ */}
-      {/* GRAFIK KAMAR */}
-      {/* ============================================ */}
       <div className="bg-white border rounded-3xl p-6 shadow-sm">
         <h2 className="text-2xl font-bold mb-6 text-gray-800">
           Statistik Status Kamar

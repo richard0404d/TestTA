@@ -27,9 +27,6 @@ const MONTHS = [
 export default function LaporanKeuangan() {
   const supabase = createClient();
 
-  // ============================================
-  // STATE FILTER
-  // ============================================
   const [filterType, setFilterType] = useState("Perbulan");
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[new Date().getMonth()]);
@@ -37,16 +34,10 @@ export default function LaporanKeuangan() {
   // State untuk menyimpan daftar tahun dinamis
   const [availableYears, setAvailableYears] = useState<string[]>([]);
 
-  // ============================================
-  // STATE DATA
-  // ============================================
   const [rawPembayaran, setRawPembayaran] = useState<any[]>([]);
   const [rawPengeluaran, setRawPengeluaran] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ============================================
-  // FUNGSI MENGAMBIL DAFTAR TAHUN DINAMIS
-  // ============================================
   const getAvailableYears = async () => {
     try {
       // Mengambil 1 data pembayaran paling lama untuk mengetahui tahun terawal
@@ -63,7 +54,6 @@ export default function LaporanKeuangan() {
         oldestYear = new Date(data[0].tanggal_pembayaran).getFullYear();
       }
 
-      // Generate array tahun dari tahun terbaru mundur ke tahun tertua
       const years = [];
       for (let y = currentYear; y >= oldestYear; y--) {
         years.push(y.toString());
@@ -71,19 +61,14 @@ export default function LaporanKeuangan() {
       setAvailableYears(years);
     } catch (error) {
       console.error("Gagal mengambil rentang tahun:", error);
-      // Fallback jika gagal: berikan tahun ini saja
       setAvailableYears([new Date().getFullYear().toString()]);
     }
   };
 
-  // ============================================
-  // FETCH DATA
-  // ============================================
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      // 1. Fetch data pembayaran yang Berhasil
       const { data: dataPembayaran, error: errPembayaran } = await supabase
         .from("pembayaran")
         .select(`
@@ -95,7 +80,6 @@ export default function LaporanKeuangan() {
 
       if (errPembayaran) throw errPembayaran;
 
-      // 2. Fetch data pengeluaran
       const { data: dataPengeluaran, error: errPengeluaran } = await supabase
         .from("pengeluaran")
         .select(`
@@ -119,9 +103,6 @@ export default function LaporanKeuangan() {
     fetchData();
   }, []);
 
-  // ============================================
-  // DATA PROCESSING (CALCULATE STATS & CHART)
-  // ============================================
   const { chartData, stats } = useMemo(() => {
     let processedData: any[] = [];
     let totalPendapatan = 0;
@@ -131,14 +112,12 @@ export default function LaporanKeuangan() {
     const targetMonthIndex = MONTHS.indexOf(selectedMonth);
 
     if (filterType === "Pertahun") {
-      // --- LOGIKA PERTAHUN (Group by Bulan 1-12) ---
       processedData = MONTHS.map((month) => ({
-        name: month.substring(0, 3), // Jan, Feb, Mar, etc.
+        name: month.substring(0, 3), 
         Pendapatan: 0,
         Pengeluaran: 0,
       }));
 
-      // Tambahkan Pembayaran ke bulan yang sesuai
       rawPembayaran.forEach((item) => {
         if (!item.tanggal_pembayaran) return;
         const date = new Date(item.tanggal_pembayaran);
@@ -150,7 +129,6 @@ export default function LaporanKeuangan() {
         }
       });
 
-      // Tambahkan Pengeluaran ke bulan yang sesuai
       rawPengeluaran.forEach((item) => {
         if (!item.tanggal_pengeluaran) return;
         const date = new Date(item.tanggal_pengeluaran);
@@ -163,15 +141,13 @@ export default function LaporanKeuangan() {
       });
 
     } else {
-      // --- LOGIKA PERBULAN (Group by Hari 1 - 28/30/31) ---
       const daysInMonth = new Date(targetYear, targetMonthIndex + 1, 0).getDate();
       processedData = Array.from({ length: daysInMonth }, (_, i) => ({
-        name: `${i + 1}`, // 1, 2, 3, ..., 31
+        name: `${i + 1}`,
         Pendapatan: 0,
         Pengeluaran: 0,
       }));
 
-      // Filter & Sum Pembayaran
       rawPembayaran.forEach((item) => {
         if (!item.tanggal_pembayaran) return;
         const date = new Date(item.tanggal_pembayaran);
@@ -183,7 +159,6 @@ export default function LaporanKeuangan() {
         }
       });
 
-      // Filter & Sum Pengeluaran
       rawPengeluaran.forEach((item) => {
         if (!item.tanggal_pengeluaran) return;
         const date = new Date(item.tanggal_pengeluaran);
@@ -206,9 +181,6 @@ export default function LaporanKeuangan() {
     };
   }, [rawPembayaran, rawPengeluaran, filterType, selectedYear, selectedMonth]);
 
-  // ============================================
-  // FORMAT CURRENCY
-  // ============================================
   const formatRupiah = (number: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -219,14 +191,10 @@ export default function LaporanKeuangan() {
 
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
-      {/* CONTENT */}
       <main className="pt-24 md:ml-[260px] p-5 md:p-8">
-        {/* CARD UTAMA */}
         <div className="bg-white rounded-3xl border shadow-sm p-6">
-          
-          {/* HEADER */}
+
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 mb-8">
-            {/* TITLE */}
             <div>
               <h1 className="text-3xl font-bold text-gray-800">
                 Laporan Keuangan
@@ -236,14 +204,11 @@ export default function LaporanKeuangan() {
               </p>
             </div>
 
-            {/* FILTER */}
             <div className="flex flex-wrap items-center gap-3">
-              {/* ICON */}
               <div className="w-11 h-11 rounded-xl border bg-white flex items-center justify-center text-gray-600 shadow-sm">
                 <CalendarDays size={20} />
               </div>
 
-              {/* FILTER TYPE */}
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
@@ -253,7 +218,6 @@ export default function LaporanKeuangan() {
                 <option value="Pertahun">Pertahun</option>
               </select>
 
-              {/* YEAR DINAMIS */}
               <select
                 value={selectedYear}
                 onChange={(e) => setSelectedYear(e.target.value)}
@@ -266,7 +230,6 @@ export default function LaporanKeuangan() {
                 ))}
               </select>
 
-              {/* MONTH (Hanya Muncul Jika Perbulan) */}
               {filterType === "Perbulan" && (
                 <select
                   value={selectedMonth}
@@ -281,9 +244,7 @@ export default function LaporanKeuangan() {
             </div>
           </div>
 
-          {/* STATISTICS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mb-8">
-            {/* TOTAL PENDAPATAN */}
             <div className="bg-white border rounded-2xl p-6 shadow-sm flex flex-col justify-center">
               <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
                 <Wallet size={24} />
@@ -294,7 +255,6 @@ export default function LaporanKeuangan() {
               </h1>
             </div>
 
-            {/* TOTAL PENGELUARAN */}
             <div className="bg-white border rounded-2xl p-6 shadow-sm flex flex-col justify-center">
               <div className="w-12 h-12 rounded-xl bg-red-100 text-red-600 flex items-center justify-center mb-4">
                 <TrendingDown size={24} />
@@ -305,7 +265,6 @@ export default function LaporanKeuangan() {
               </h1>
             </div>
 
-            {/* LABA BERSIH */}
             <div className="bg-white border rounded-2xl p-6 shadow-sm flex flex-col justify-center">
               <div className="w-12 h-12 rounded-xl bg-green-100 text-green-600 flex items-center justify-center mb-4">
                 <TrendingUp size={24} />
@@ -317,7 +276,6 @@ export default function LaporanKeuangan() {
             </div>
           </div>
 
-          {/* GRAFIK */}
           <div className="bg-white border rounded-3xl p-6 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">
               Grafik Keuangan {filterType === "Perbulan" ? `${selectedMonth} ${selectedYear}` : `Tahun ${selectedYear}`}

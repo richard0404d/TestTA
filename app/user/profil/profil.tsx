@@ -13,7 +13,6 @@ export default function ProfilPage() {
   const [saving, setSaving] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false); // State khusus loading password
   
-  // State untuk notifikasi Toast
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -21,7 +20,6 @@ export default function ProfilPage() {
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
   
-  // State untuk form profil
   const [profil, setProfil] = useState({
     nama_penyewa: "",
     nomor_telepon_penyewa: "",

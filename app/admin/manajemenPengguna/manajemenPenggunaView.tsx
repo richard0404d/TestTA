@@ -5,14 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Plus, Pencil, X, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ManajemenPenggunaView() {
-  // ============================================
-  // SUPABASE
-  // ============================================
   const supabase = createClient();
 
-  // ============================================
-  // STATE
-  // ============================================
   const [pegawai, setPegawai] = useState<any[]>([]);
   const [penyewa, setPenyewa] = useState<any[]>([]);
 
@@ -23,38 +17,27 @@ export default function ManajemenPenggunaView() {
   const [editPegawaiId, setEditPegawaiId] = useState<string | null>(null);
   const [editPenyewaId, setEditPenyewaId] = useState<string | null>(null);
 
-  // File Upload State untuk KTP
   const [fileKtp, setFileKtp] = useState<File | null>(null);
 
-  // ============================================
-  // PAGINATION STATE
-  // ============================================
   const [currentPagePegawai, setCurrentPagePegawai] = useState(1);
   const [currentPagePenyewa, setCurrentPagePenyewa] = useState(1);
   const itemsPerPage = 5;
 
-  // Toast Notification State
   const [toast, setToast] = useState({
     show: false,
     message: "",
-    type: "success", // 'success' | 'error'
+    type: "success", 
   });
 
   const isNumber = (val: string) => /^\d*$/.test(val);
 
-  // ============================================
-  // HELPER TOAST
-  // ============================================
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: "", type: "success" });
-    }, 3000); // Otomatis hilang setelah 3 detik
+    }, 3000); 
   };
 
-  // ============================================
-  // FORM PEGAWAI
-  // ============================================
   const [pegawaiForm, setPegawaiForm] = useState({
     nama_pegawai: "",
     email_pegawai: "",
@@ -64,22 +47,16 @@ export default function ManajemenPenggunaView() {
     status_pegawai: "Aktif",
   });
 
-  // ============================================
-  // FORM PENYEWA
-  // ============================================
   const [penyewaForm, setPenyewaForm] = useState({
     nama_penyewa: "",
     email_penyewa: "",
     password: "",
     nomor_telepon_penyewa: "",
-    ktp_penyewa: "", // Menyimpan URL gambar KTP
-    jenis_kelamin: "true", // Default 'true' = Pria
+    ktp_penyewa: "", 
+    jenis_kelamin: "true", 
     status_penyewa: "Aktif",
   });
 
-  // ============================================
-  // GET PEGAWAI
-  // ============================================
   const getPegawai = async () => {
     const { data, error } = await supabase
       .from("pegawai")
@@ -93,9 +70,6 @@ export default function ManajemenPenggunaView() {
     setPegawai(data || []);
   };
 
-  // ============================================
-  // GET PENYEWA
-  // ============================================
   const getPenyewa = async () => {
     const { data, error } = await supabase
       .from("penyewa")
@@ -109,23 +83,16 @@ export default function ManajemenPenggunaView() {
     setPenyewa(data || []);
   };
 
-  // ============================================
-  // LOAD DATA
-  // ============================================
   useEffect(() => {
     getPegawai();
     getPenyewa();
   }, []);
 
-  // ============================================
-  // HANDLE INPUT PEGAWAI
-  // ============================================
   const handlePegawaiChange = (e: any) => {
     const { name, value } = e.target;
-    
-    // Jika field yang diubah adalah nomor telepon, validasi hanya angka
+
     if (name === "nomor_telepon_pegawai") {
-      if (!isNumber(value)) return; // Berhenti jika bukan angka
+      if (!isNumber(value)) return; 
     }
     
     setPegawaiForm({
@@ -134,15 +101,11 @@ export default function ManajemenPenggunaView() {
     });
   };
 
-  // ============================================
-  // HANDLE INPUT PENYEWA
-  // ============================================
   const handlePenyewaChange = (e: any) => {
     const { name, value } = e.target;
-    
-    // Jika field yang diubah adalah nomor telepon, validasi hanya angka
+
     if (name === "nomor_telepon_penyewa") {
-      if (!isNumber(value)) return; // Berhenti jika bukan angka
+      if (!isNumber(value)) return;
     }
     
     setPenyewaForm({
@@ -151,9 +114,6 @@ export default function ManajemenPenggunaView() {
     });
   };
 
-  // ============================================
-  // SIMPAN PEGAWAI
-  // ============================================
   const handleSavePegawai = async () => {
     try {
       setLoading(true);
@@ -164,7 +124,6 @@ export default function ManajemenPenggunaView() {
         return;
       }
 
-      // --- VALIDASI PEGAWAI BARU ---
       if (!editPegawaiId) {
         if (!pegawaiForm.email_pegawai || !pegawaiForm.password) {
           showToast("Email dan Password wajib diisi untuk pegawai baru!", "error");
@@ -172,7 +131,6 @@ export default function ManajemenPenggunaView() {
           return;
         }
 
-        // [BARU] CEK KETERSEDIAAN EMAIL DI TABEL PEGAWAI DAN PENYEWA
         const { data: cekPegawai } = await supabase.from("pegawai").select("email_pegawai").eq("email_pegawai", pegawaiForm.email_pegawai).maybeSingle();
         const { data: cekPenyewa } = await supabase.from("penyewa").select("email_penyewa").eq("email_penyewa", pegawaiForm.email_pegawai).maybeSingle();
 
@@ -183,9 +141,6 @@ export default function ManajemenPenggunaView() {
         }
       }
 
-      // ============================================
-      // UPDATE
-      // ============================================
       if (editPegawaiId) {
 
         if (!pegawaiForm.nama_pegawai && !pegawaiForm.nomor_telepon_pegawai) {
@@ -220,9 +175,7 @@ export default function ManajemenPenggunaView() {
         if (error) throw error;
         showToast("Pegawai berhasil diubah", "success");
       } else {
-        // ============================================
-        // INSERT AUTH USER
-        // ============================================
+
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: pegawaiForm.email_pegawai,
           password: pegawaiForm.password,
@@ -235,9 +188,6 @@ export default function ManajemenPenggunaView() {
           throw new Error("User gagal dibuat");
         }
 
-        // ============================================
-        // INSERT PEGAWAI
-        // ============================================
         const { error } = await supabase.from("pegawai").insert([
           {
             id_pegawai: userId,
@@ -253,7 +203,6 @@ export default function ManajemenPenggunaView() {
         showToast("Pegawai berhasil ditambahkan", "success");
       }
 
-      // REFRESH & RESET
       await getPegawai();
       setPegawaiForm({
         nama_pegawai: "",
@@ -273,14 +222,9 @@ export default function ManajemenPenggunaView() {
     }
   };
 
-  // ============================================
-  // SIMPAN PENYEWA
-  // ============================================
   const handleSavePenyewa = async () => {
     try {
       setLoading(true);
-
-      // --- VALIDASI PENYEWA BARU ---
       
       if (!editPenyewaId) {
         if (!penyewaForm.email_penyewa && !penyewaForm.password && !penyewaForm.nama_penyewa && !penyewaForm.nomor_telepon_penyewa && !fileKtp) {
@@ -313,7 +257,6 @@ export default function ManajemenPenggunaView() {
           return;
         }
 
-        // [BARU] CEK KETERSEDIAAN EMAIL SEBELUM UPLOAD KTP
         const { data: cekPegawai } = await supabase.from("pegawai").select("email_pegawai").eq("email_pegawai", penyewaForm.email_penyewa).maybeSingle();
         const { data: cekPenyewa } = await supabase.from("penyewa").select("email_penyewa").eq("email_penyewa", penyewaForm.email_penyewa).maybeSingle();
 
@@ -324,20 +267,17 @@ export default function ManajemenPenggunaView() {
         }
       }
 
-      // 1. Upload KTP Image jika ada file baru yang dipilih
       let fotoKtpUrl = null;
       if (fileKtp) {
         const fileExt = fileKtp.name.split(".").pop();
         const fileName = `ktp-${Date.now()}.${fileExt}`;
 
-        // Asumsi bucket Supabase bernama 'ktp'
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("ktp") 
           .upload(fileName, fileKtp);
 
         if (uploadError) throw uploadError;
 
-        // Ambil URL public
         const { data: publicUrlData } = supabase.storage
           .from("ktp")
           .getPublicUrl(uploadData.path);
@@ -345,24 +285,19 @@ export default function ManajemenPenggunaView() {
         fotoKtpUrl = publicUrlData.publicUrl;
       }
 
-      // Payload dasar (untuk digunakan di Insert maupun Update)
       const isPria = penyewaForm.jenis_kelamin === "true";
       const payload: any = {
         nama_penyewa: penyewaForm.nama_penyewa,
         email_penyewa: penyewaForm.email_penyewa,
         nomor_telepon_penyewa: penyewaForm.nomor_telepon_penyewa,
-        jenis_kelamin_penyewa: isPria, // Konversi ke boolean
+        jenis_kelamin_penyewa: isPria, 
         status_penyewa: penyewaForm.status_penyewa,
       };
 
-      // Tambahkan url foto KTP jika file diunggah
       if (fotoKtpUrl) {
         payload.ktp_penyewa = fotoKtpUrl;
       }
 
-      // ============================================
-      // UPDATE PENYEWA
-      // ============================================
       if (editPenyewaId) {
         if (!penyewaForm.nama_penyewa && !penyewaForm.nomor_telepon_penyewa) {
           showToast("Harap mengisi semua field wajib!", "error");
@@ -389,9 +324,7 @@ export default function ManajemenPenggunaView() {
 
         if (error) throw error;
 
-        // --- TRIGGER OTOMATIS: JIKA STATUS NON-AKTIF ATAU DITANGGUHKAN ---
         if (payload.status_penyewa === "Non-Aktif" || payload.status_penyewa === "Ditangguhkan") {
-          // Cari data sewa yang masih berjalan (bukan "Berakhir")
           const { data: sewaAktif, error: sewaError } = await supabase
             .from("sewa")
             .select("id_sewa, id_kamar, id_reservasi")
@@ -400,13 +333,9 @@ export default function ManajemenPenggunaView() {
 
           if (sewaAktif && sewaAktif.length > 0) {
             for (const sewa of sewaAktif) {
-              // 1. Update Sewa menjadi "Berakhir"
               await supabase.from("sewa").update({ status_sewa: "Berakhir" }).eq("id_sewa", sewa.id_sewa);
-              // 2. Update Reservasi menjadi "Selesai"
               if (sewa.id_reservasi) await supabase.from("reservasi").update({ status_reservasi: "Selesai" }).eq("id_reservasi", sewa.id_reservasi);
-              // 3. Update Kamar menjadi "Tersedia"
               if (sewa.id_kamar) await supabase.from("kamar").update({ status_kamar: "Tersedia" }).eq("id_kamar", sewa.id_kamar);
-              // 4. Update Tagihan menjadi "Kadaluarsa"
               await supabase.from("tagihan").update({ status_tagihan: "Kadaluarsa" }).eq("id_sewa", sewa.id_sewa).eq("status_tagihan", "Belum Dibayar");
             }
           }
@@ -414,9 +343,6 @@ export default function ManajemenPenggunaView() {
 
         showToast("Penyewa berhasil diubah", "success");
       } else {
-        // ============================================
-        // INSERT AUTH USER (Baru)
-        // ============================================
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: penyewaForm.email_penyewa,
           password: penyewaForm.password,
@@ -429,9 +355,6 @@ export default function ManajemenPenggunaView() {
           throw new Error("User gagal dibuat");
         }
 
-        // ============================================
-        // INSERT PENYEWA BARU
-        // ============================================
         payload.id_penyewa = userId;
         payload.role = 3; 
 
@@ -441,7 +364,6 @@ export default function ManajemenPenggunaView() {
         showToast("Penyewa berhasil ditambahkan", "success");
       }
 
-      // REFRESH & RESET
       await getPenyewa();
       setPenyewaForm({
         nama_penyewa: "",
@@ -464,7 +386,6 @@ export default function ManajemenPenggunaView() {
     }
   };
 
-  // LOGIKA PAGINATION ITEMS
   const indexOfLastPegawai = currentPagePegawai * itemsPerPage;
   const indexOfFirstPegawai = indexOfLastPegawai - itemsPerPage;
   const currentPegawai = pegawai.slice(indexOfFirstPegawai, indexOfLastPegawai);
@@ -477,10 +398,7 @@ export default function ManajemenPenggunaView() {
 
   return (
     <div className="min-h-screen bg-gray-100 md:pt-20">
-      
-      {/* ============================================ */}
-      {/* TOAST NOTIFICATION */}
-      {/* ============================================ */}
+
       {toast.show && (
         <div 
           className={`fixed top-24 right-5 z-[100] flex items-center gap-3 px-6 py-4 rounded-xl shadow-lg transition-all duration-300 transform translate-y-0 opacity-100 ${
@@ -502,16 +420,12 @@ export default function ManajemenPenggunaView() {
 
       <main className="pt-24 md:ml-[260px] p-5 md:p-8">
         <div className="bg-white rounded-3xl border shadow-sm p-6">
-          
-          {/* TITLE */}
+
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-800">Manajemen Pengguna</h1>
             <p className="text-gray-500 mt-1">Kelola data pegawai dan penyewa kos</p>
           </div>
 
-          {/* ============================================ */}
-          {/* DATA PEGAWAI */}
-          {/* ============================================ */}
           <div className="mb-12">
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-2xl font-bold">Data Pegawai</h2>
@@ -595,7 +509,6 @@ export default function ManajemenPenggunaView() {
                 </tbody>
               </table>
 
-              {/* PAGINATION PEGAWAI */}
               {pegawai.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-4 border-t bg-white">
                   <div className="text-sm text-gray-500">
@@ -637,9 +550,6 @@ export default function ManajemenPenggunaView() {
             </div>
           </div>
 
-          {/* ============================================ */}
-          {/* DATA PENYEWA */}
-          {/* ============================================ */}
           <div>
             <div className="flex justify-between items-center mb-5">
               <h2 className="text-2xl font-bold">Data Penyewa</h2>
@@ -647,7 +557,7 @@ export default function ManajemenPenggunaView() {
                 onClick={() => {
                   setOpenPenyewa(true);
                   setEditPenyewaId(null);
-                  setFileKtp(null); // Reset input foto
+                  setFileKtp(null); 
                   setPenyewaForm({
                     nama_penyewa: "",
                     email_penyewa: "",
@@ -773,9 +683,6 @@ export default function ManajemenPenggunaView() {
         </div>
       </main>
 
-      {/* ============================================ */}
-      {/* MODAL PEGAWAI */}
-      {/* ============================================ */}
       {openPegawai && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative animate-in fade-in zoom-in duration-200">
@@ -892,9 +799,6 @@ export default function ManajemenPenggunaView() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* MODAL PENYEWA */}
-      {/* ============================================ */}
       {openPenyewa && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-2xl rounded-3xl p-8 relative max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">

@@ -9,22 +9,18 @@ export default function ManajemenLaporanKerusakan() {
   const [loading, setLoading] = useState(true);
   const [laporan, setLaporan] = useState<any[]>([]);
   
-  // MODAL STATES
   const [selectedDetail, setSelectedDetail] = useState<any>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  
-  // FORM EDIT STATES
+
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({
     status_perbaikan: "Menunggu Perbaikan",
     keterangan_perbaikan: "",
   });
 
-  // PAGINATION STATE
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // TOAST STATE
   const [toast, setToast] = useState<{ show: boolean; message: string; type: "success" | "error" }>({
     show: false,
     message: "",
@@ -81,9 +77,6 @@ export default function ManajemenLaporanKerusakan() {
     setLoading(false);
   }
 
-  // ============================================
-  // OPEN EDIT MODAL
-  // ============================================
   const handleOpenEdit = (item: any) => {
     setEditId(item.id_kerusakan);
     setEditForm({
@@ -93,9 +86,6 @@ export default function ManajemenLaporanKerusakan() {
     setIsEditModalOpen(true);
   };
 
-  // ============================================
-  // PROSES UPDATE DATA (Selalu Update Tanggal)
-  // ============================================
   const handleSubmitEdit = async () => {
     if (!editId) return;
 
@@ -108,7 +98,6 @@ export default function ManajemenLaporanKerusakan() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Menyiapkan Payload Update
       const payload: any = {
         status_perbaikan: editForm.status_perbaikan,
         keterangan_perbaikan: editForm.keterangan_perbaikan,
@@ -124,7 +113,6 @@ export default function ManajemenLaporanKerusakan() {
 
       if (error) throw error;
 
-      // Ambil detail untuk update kondisi fasilitas kamar agar sinkron
       const { data: laporanData } = await supabase
         .from("laporan_kerusakan")
         .select("id_detail_fasiliitas_kamar")
@@ -142,11 +130,10 @@ export default function ManajemenLaporanKerusakan() {
       showToast("Laporan berhasil diperbarui!", "success");
       setIsEditModalOpen(false);
       setEditId(null);
-      
-      // Tutup modal detail jika sedang terbuka agar datanya tidak basi
+
       setSelectedDetail(null); 
       
-      getLaporan(); // Refresh data tabel
+      getLaporan(); 
     } catch (err: any) {
       console.error(err);
       showToast("Gagal mengupdate laporan.", "error");
@@ -155,9 +142,6 @@ export default function ManajemenLaporanKerusakan() {
     }
   };
 
-  // ============================================
-  // HELPERS (SUDAH DIPERBAIKI ZONA WAKTUNYA)
-  // ============================================
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentLaporan = laporan.slice(indexOfFirstItem, indexOfLastItem);
@@ -265,7 +249,6 @@ export default function ManajemenLaporanKerusakan() {
             </tbody>
           </table>
 
-          {/* PAGINATION UI */}
           {!loading && laporan.length > 0 && (
             <div className="flex items-center justify-between px-6 py-4 bg-white">
               <div className="text-sm text-gray-500">
@@ -297,9 +280,6 @@ export default function ManajemenLaporanKerusakan() {
         </div>
       </div>
 
-      {/* ============================================ */}
-      {/* MODAL UPDATE STATUS & KETERANGAN (PENCIL) */}
-      {/* ============================================ */}
       {isEditModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5">
           <div className="bg-white rounded-3xl w-full max-w-lg p-8 relative animate-in fade-in zoom-in duration-200 shadow-2xl">
@@ -346,9 +326,6 @@ export default function ManajemenLaporanKerusakan() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* MODAL DETAIL KESELURUHAN (EYE) */}
-      {/* ============================================ */}
       {selectedDetail && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-5">
           <div className="bg-white rounded-3xl w-full max-w-2xl p-8 max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in duration-200 shadow-2xl">
@@ -358,7 +335,7 @@ export default function ManajemenLaporanKerusakan() {
             <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Informasi Lengkap Laporan</h2>
 
             <div className="space-y-6">
-              {/* INFO PELAPOR */}
+
               <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">Nama Pelapor</p>
@@ -378,7 +355,6 @@ export default function ManajemenLaporanKerusakan() {
                 </div>
               </div>
 
-              {/* MASALAH / KELUHAN */}
               <div>
                 <label className="font-bold text-gray-800 text-sm">Keluhan Penyewa:</label>
                 <div className="w-full border border-red-100 rounded-xl p-4 mt-2 bg-red-50/50 text-gray-800 min-h-[60px]">
@@ -386,7 +362,6 @@ export default function ManajemenLaporanKerusakan() {
                 </div>
               </div>
 
-              {/* GAMBAR KERUSAKAN */}
               <div>
                 <label className="font-bold text-gray-800 text-sm">Lampiran Foto:</label>
                 <div className="mt-2">
@@ -408,7 +383,6 @@ export default function ManajemenLaporanKerusakan() {
 
               <hr className="border-gray-200" />
 
-              {/* RIWAYAT TINDAKAN PENGELOLA */}
               <div className="bg-gray-50 p-5 rounded-2xl border border-blue-100">
                 <h3 className="font-bold text-[#1c3163] mb-4">Catatan Tindakan Pengelola</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

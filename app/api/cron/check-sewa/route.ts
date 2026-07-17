@@ -21,10 +21,6 @@ export async function GET() {
     const today =
       new Date();
 
-    // ============================================
-    // GET SEMUA SEWA AKTIF
-    // ============================================
-
     const {
       data: sewaAktif,
       error,
@@ -45,10 +41,6 @@ export async function GET() {
       });
     }
 
-    // ============================================
-    // LOOP SEWA
-    // ============================================
-
     for (
       const sewa of sewaAktif || []
     ) {
@@ -65,17 +57,9 @@ export async function GET() {
           sewa.tanggal_berakhir_sewa
         );
 
-      // ============================================
-      // TOLERANSI 10 HARI
-      // ============================================
-
       batasAkhir.setDate(
         batasAkhir.getDate() + 10
       );
-
-      // ============================================
-      // BELUM LEWAT TOLERANSI
-      // ============================================
 
       if (
         today < batasAkhir
@@ -89,10 +73,6 @@ export async function GET() {
         sewa.id_sewa
       );
 
-      // ============================================
-      // UPDATE SEWA
-      // ============================================
-
       await supabase
         .from("sewa")
         .update({
@@ -103,10 +83,6 @@ export async function GET() {
           "id_sewa",
           sewa.id_sewa
         );
-
-      // ============================================
-      // UPDATE RESERVASI
-      // ============================================
 
       await supabase
         .from("reservasi")
@@ -119,10 +95,6 @@ export async function GET() {
           sewa.id_reservasi
         );
 
-      // ============================================
-      // UPDATE KAMAR
-      // ============================================
-
       await supabase
         .from("kamar")
         .update({
@@ -133,10 +105,6 @@ export async function GET() {
           "id_kamar",
           sewa.id_kamar
         );
-
-      // ============================================
-      // UPDATE TAGIHAN BELUM DIBAYAR
-      // ============================================
 
       await supabase
         .from("tagihan")

@@ -2,23 +2,17 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    // ============================================
-    // BODY
-    // ============================================
+
     const body = await req.json();
 
-    // Sesuaikan payload ini saat kamu melakukan fetch dari frontend/webhook
     const {
       emailPenyewa,
       kamar,
-      periode, // Contoh: "Bulan Agustus 2026"
+      periode,
       totalTagihan,
       status,
     } = body;
 
-    // ============================================
-    // FUNCTION SEND EMAIL (Brevo)
-    // ============================================
     const sendEmail = async (to: string, subject: string, html: string) => {
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
@@ -40,15 +34,11 @@ export async function POST(req: Request) {
       const data = await response.json();
       console.log("EMAIL RESPONSE:", data);
 
-      // Proteksi untuk menangkap error dari Brevo
       if (!response.ok) {
         console.error("BREVO REJECTED:", data);
       }
     };
 
-    // ============================================
-    // EMAIL PENYEWA
-    // ============================================
     if (emailPenyewa) {
       await sendEmail(
         emailPenyewa,
@@ -73,9 +63,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // ============================================
-    // EMAIL ADMIN
-    // ============================================
     await sendEmail(
       "rumahkos2an@gmail.com",
       `Notifikasi Tagihan Dibuat - Kamar ${kamar}`,
@@ -94,9 +81,6 @@ export async function POST(req: Request) {
       `
     );
 
-    // ============================================
-    // SUCCESS
-    // ============================================
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
